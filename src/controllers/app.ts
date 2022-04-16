@@ -7,6 +7,66 @@ import { version } from '../version';
 
 let spellchecker: { parse: (arg0: { aff: Buffer; dic: Buffer; }) => any; use: (arg0: any) => void; check: (arg0: string) => any; };
 
+const vision = require('@google-cloud/vision');
+
+async function visionTest() {
+
+  // Creates a client
+  const client = new vision.ImageAnnotatorClient();
+
+  /**
+   * TODO(developer): Uncomment the following line before running the sample.
+   */
+  const fileName = '/Users/tedshaffer/Documents/Projects/twordleNerdleClient/programmaticallyGenerated-0.png';
+
+  // Performs text detection on the local file
+  const [result] = await client.textDetection(fileName);
+  const detections: any[] = result.textAnnotations;
+  console.log('Text:');
+  detections.forEach(text => console.log(text));
+}
+
+// before
+// https://cloud.google.com/vision/docs/samples/vision-fulltext-detection
+async function visionTest2() {
+
+  // Creates a client
+  const client = new vision.ImageAnnotatorClient();
+
+  /**
+   * TODO(developer): Uncomment the following line before running the sample.
+   */
+  const fileName = '/Users/tedshaffer/Documents/Projects/twordleNerdleClient/programmaticallyGenerated-0.png';
+
+  // Read a local image as a text document
+  const [result] = await client.documentTextDetection(fileName);
+  const fullTextAnnotation: any = result.fullTextAnnotation;
+  console.log(`Full text: ${fullTextAnnotation.text}`);
+  const pages = fullTextAnnotation.pages as any[];
+  pages.forEach((page) => {
+    // (fullTextAnnotation.pages as any).forEach(page: any => {
+    const blocks: any[] = page.blocks as any[];
+    blocks.forEach(block => {
+      console.log(`Block confidence: ${block.confidence}`);
+      const paragraphs: any[] = block.paragraphs as any[];
+      paragraphs.forEach(paragraph => {
+        console.log(`Paragraph confidence: ${paragraph.confidence}`);
+        const words: any[] = paragraph.words as any[];
+        words.forEach(word => {
+          const symbols: any[] = word.symbols as any[];
+          const wordText = symbols.map(s => s.text).join('');
+          console.log(`Word text: ${wordText}`);
+          console.log(`Word confidence: ${word.confidence}`);
+          symbols.forEach(symbol => {
+            console.log(`Symbol text: ${symbol.text}`);
+            console.log(`Symbol confidence: ${symbol.confidence}`);
+          });
+        });
+      });
+    });
+  });// end
+}
+
 export const initializeSpellChecker = () => {
 
   // https://www.npmjs.com/package/hunspell-spellchecker
@@ -37,6 +97,13 @@ export const getVersion = (request: Request, response: Response, next: any) => {
 };
 
 export const getWords = (request: Request, response: Response, next: any) => {
+
+  console.log('visionTest2');
+  visionTest2();
+
+  // console.log('visionTest');
+  // visionTest();
+
   console.log('getWords');
   console.log(request.body);
 
