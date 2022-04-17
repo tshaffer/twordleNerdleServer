@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 const en = require('dictionary-en');
 import * as fs from 'fs';
+import * as tmp from 'tmp';
+
 import { isNil } from 'lodash';
 
 import { version } from '../version';
@@ -172,14 +174,33 @@ const base64ToImg = (img: string): Promise<any> => {
   var buf = new Buffer(data, 'base64');
   console.log('invoke fs.write');
   return new Promise((resolve, reject) => {
-    fs.writeFile('image.png', buf, (err) => {
-      console.log('fs.writeFile callback');
+
+    const tmpobj = tmp.fileSync();
+    console.log('File: ', tmpobj.name);
+    console.log('Filedescriptor: ', tmpobj.fd);
+    fs.write(tmpobj.fd, buf, (err) => {
+      console.log('fs.write callback');
       if (err) {
         console.log('write error', err);
         return reject(err);
       }
-      return resolve(null);
+      fs.close(tmpobj.fd, (err) => {
+        if (err) {
+          console.log('write error', err);
+          return reject(err);
+        }
+        return resolve(null);
+      });
     });
+    
+    // fs.writeFile('image.png', buf, (err) => {
+    //   console.log('fs.writeFile callback');
+    //   if (err) {
+    //     console.log('write error', err);
+    //     return reject(err);
+    //   }
+    //   return resolve(null);
+    // });
   });
 
 }
