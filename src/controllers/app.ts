@@ -104,12 +104,6 @@ export const getWords = (request: Request, response: Response, next: any) => {
   getWords2(request, response, next);
   return;
 
-  // console.log('visionTest2');
-  // visionTest2();
-
-  // console.log('visionTest');
-  // visionTest();
-
   console.log('getWords');
   console.log(request.body);
 
@@ -172,7 +166,6 @@ const base64ToImg = (img: string): Promise<string> => {
   // strip off the data: url prefix to get just the base64-encoded bytes
   var data = img.replace(/^data:image\/\w+;base64,/, "");
   var buf = new Buffer(data, 'base64');
-  console.log('invoke fs.write');
   return new Promise((resolve, reject) => {
 
     const tmpobj = tmp.fileSync();
@@ -186,7 +179,7 @@ const base64ToImg = (img: string): Promise<string> => {
       }
       fs.close(tmpobj.fd, (err) => {
         if (err) {
-          console.log('write error', err);
+          console.log('close error', err);
           return reject(err);
         }
         return resolve(tmpobj.name);
@@ -198,16 +191,9 @@ const base64ToImg = (img: string): Promise<string> => {
 
 export const getWords2 = (request: Request, response: Response, next: any) => {
 
-  console.log('getWords2');
-  console.log(request.body);
-
   const { imageDataBase64, candidateLettersAtLocation, lettersSomewhereInWord } = request.body;
 
-  console.log('getWords2 - invoked base64ToImg');
   base64ToImg(imageDataBase64).then((filePath) => {
-    console.log('getWords2 - return from base64ToImg');
-    console.log('invoke visionTest2 from getWords2');
-    console.log(filePath);
     visionTest2(filePath);
   });
 }
