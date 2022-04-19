@@ -9,7 +9,7 @@ import { version } from '../version';
 
 let spellchecker: { parse: (arg0: { aff: Buffer; dic: Buffer; }) => any; use: (arg0: any) => void; check: (arg0: string) => any; };
 
-const vision = require('@google-cloud/vision');
+import * as vision from '@google-cloud/vision'
 
 async function visionTest() {
 
@@ -42,27 +42,41 @@ async function visionTest2(fileName: string) {
   // const fileName = '/Users/tedshaffer/Documents/Projects/twordleNerdleServer/image.png';
 
   // Read a local image as a text document
-  const [result] = await client.documentTextDetection(fileName);
-  const fullTextAnnotation: any = result.fullTextAnnotation;
-  console.log(`Full text: ${fullTextAnnotation.text}`);
-  const pages = fullTextAnnotation.pages as any[];
-  pages.forEach((page) => {
+  const [result]: vision.protos.google.cloud.vision.v1.IAnnotateImageResponse[] = await client.documentTextDetection(fileName);
+
+  // console.log('result keys: ', Object.keys(result));
+
+  const fullTextAnnotation: vision.protos.google.cloud.vision.v1.ITextAnnotation = result.fullTextAnnotation;
+  // console.log('fullTextAnnotation keys: ', Object.keys(fullTextAnnotation));
+  // console.log(`Full text: ${fullTextAnnotation.text}`);
+  
+  // vision.protos.google.cloud.vision.v1.
+  const pages: vision.protos.google.cloud.vision.v1.IPage[] = fullTextAnnotation.pages;
+  pages.forEach((page: vision.protos.google.cloud.vision.v1.IPage) => {
+    // console.log('page keys: ', Object.keys(page));
+    console.log('page width, height: ', page.width, page.height);
     // (fullTextAnnotation.pages as any).forEach(page: any => {
-    const blocks: any[] = page.blocks as any[];
-    blocks.forEach(block => {
-      console.log(`Block confidence: ${block.confidence}`);
-      const paragraphs: any[] = block.paragraphs as any[];
+    const blocks: vision.protos.google.cloud.vision.v1.IBlock[] = page.blocks;
+    blocks.forEach((block: vision.protos.google.cloud.vision.v1.IBlock) => {
+      // console.log('block keys: ', Object.keys(block));
+      // console.log(`Block confidence: ${block.confidence}`);
+      console.log('Block bounding box: ', block.boundingBox);
+      const paragraphs: vision.protos.google.cloud.vision.v1.IParagraph[] = block.paragraphs;
       paragraphs.forEach(paragraph => {
-        console.log(`Paragraph confidence: ${paragraph.confidence}`);
-        const words: any[] = paragraph.words as any[];
+        // console.log('paragraph keys: ', Object.keys(paragraph));
+        // console.log(`Paragraph confidence: ${paragraph.confidence}`);
+        const words: vision.protos.google.cloud.vision.v1.IWord[] = paragraph.words;
         words.forEach(word => {
-          const symbols: any[] = word.symbols as any[];
+          // console.log('word keys: ', Object.keys(word));
+          const symbols: vision.protos.google.cloud.vision.v1.ISymbol[] = word.symbols;
           const wordText = symbols.map(s => s.text).join('');
-          console.log(`Word text: ${wordText}`);
-          console.log(`Word confidence: ${word.confidence}`);
-          symbols.forEach(symbol => {
+          // console.log(`Word text: ${wordText}`);
+          // console.log(`Word confidence: ${word.confidence}`);
+          symbols.forEach((symbol: vision.protos.google.cloud.vision.v1.ISymbol) => {
+            // console.log('symbol keys: ', Object.keys(symbol));
             console.log(`Symbol text: ${symbol.text}`);
             console.log(`Symbol confidence: ${symbol.confidence}`);
+            console.log('Symbol bounding box: ', symbol.boundingBox);
           });
         });
       });
