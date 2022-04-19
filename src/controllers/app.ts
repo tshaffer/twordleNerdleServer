@@ -3,7 +3,7 @@ const en = require('dictionary-en');
 import * as fs from 'fs';
 import * as tmp from 'tmp';
 
-import { isNil } from 'lodash';
+import { isNil, join } from 'lodash';
 
 import { version } from '../version';
 
@@ -32,14 +32,7 @@ async function visionTest() {
 // https://cloud.google.com/vision/docs/samples/vision-fulltext-detection
 async function visionTest2(fileName: string) {
 
-  // Creates a client
   const client = new vision.ImageAnnotatorClient();
-
-  /**
-   * TODO(developer): Uncomment the following line before running the sample.
-   */
-  // const fileName = '/Users/tedshaffer/Documents/Projects/twordleNerdleClient/programmaticallyGenerated-0.png';
-  // const fileName = '/Users/tedshaffer/Documents/Projects/twordleNerdleServer/image.png';
 
   // Read a local image as a text document
   const [result]: vision.protos.google.cloud.vision.v1.IAnnotateImageResponse[] = await client.documentTextDetection(fileName);
@@ -52,38 +45,103 @@ async function visionTest2(fileName: string) {
   
   // vision.protos.google.cloud.vision.v1.
   const pages: vision.protos.google.cloud.vision.v1.IPage[] = fullTextAnnotation.pages;
+  // pages.forEach((page: vision.protos.google.cloud.vision.v1.IPage) => {
+  //   // console.log('page keys: ', Object.keys(page));
+  //   console.log('page width, height: ', page.width, page.height);
+  //   // (fullTextAnnotation.pages as any).forEach(page: any => {
+  //   const blocks: vision.protos.google.cloud.vision.v1.IBlock[] = page.blocks;
+  //   blocks.forEach((block: vision.protos.google.cloud.vision.v1.IBlock) => {
+  //     // console.log('block keys: ', Object.keys(block));
+  //     // console.log(`Block confidence: ${block.confidence}`);
+  //     // console.log('Block bounding box: ', block.boundingBox);
+  //     const paragraphs: vision.protos.google.cloud.vision.v1.IParagraph[] = block.paragraphs;
+  //     paragraphs.forEach(paragraph => {
+  //       // console.log('paragraph keys: ', Object.keys(paragraph));
+  //       // console.log(`Paragraph confidence: ${paragraph.confidence}`);
+  //       const words: vision.protos.google.cloud.vision.v1.IWord[] = paragraph.words;
+  //       words.forEach(word => {
+  //         // console.log('word keys: ', Object.keys(word));
+  //         const symbols: vision.protos.google.cloud.vision.v1.ISymbol[] = word.symbols;
+  //         // const wordText = symbols.map(s => s.text).join('');
+  //         // console.log(`Word text: ${wordText}`);
+  //         // console.log(`Word confidence: ${word.confidence}`);
+  //         symbols.forEach((symbol: vision.protos.google.cloud.vision.v1.ISymbol) => {
+  //           // console.log('symbol keys: ', Object.keys(symbol));
+  //           // console.log(`Symbol text: ${symbol.text}`);
+  //           // console.log(`Symbol confidence: ${symbol.confidence}`);
+  //           // console.log('Symbol bounding box: ', symbol.boundingBox);
+  //         });
+  //       });
+  //     });
+  //   });
+  // });// end
+
+  console.log('pages length: ', pages.length);
+
+  // check for overlapping symbol rectangles
+  const baseSymbols: vision.protos.google.cloud.vision.v1.ISymbol[] = [];
   pages.forEach((page: vision.protos.google.cloud.vision.v1.IPage) => {
-    // console.log('page keys: ', Object.keys(page));
     console.log('page width, height: ', page.width, page.height);
-    // (fullTextAnnotation.pages as any).forEach(page: any => {
     const blocks: vision.protos.google.cloud.vision.v1.IBlock[] = page.blocks;
     blocks.forEach((block: vision.protos.google.cloud.vision.v1.IBlock) => {
-      // console.log('block keys: ', Object.keys(block));
-      // console.log(`Block confidence: ${block.confidence}`);
-      console.log('Block bounding box: ', block.boundingBox);
       const paragraphs: vision.protos.google.cloud.vision.v1.IParagraph[] = block.paragraphs;
       paragraphs.forEach(paragraph => {
-        // console.log('paragraph keys: ', Object.keys(paragraph));
-        // console.log(`Paragraph confidence: ${paragraph.confidence}`);
         const words: vision.protos.google.cloud.vision.v1.IWord[] = paragraph.words;
         words.forEach(word => {
-          // console.log('word keys: ', Object.keys(word));
           const symbols: vision.protos.google.cloud.vision.v1.ISymbol[] = word.symbols;
-          const wordText = symbols.map(s => s.text).join('');
-          // console.log(`Word text: ${wordText}`);
-          // console.log(`Word confidence: ${word.confidence}`);
           symbols.forEach((symbol: vision.protos.google.cloud.vision.v1.ISymbol) => {
-            // console.log('symbol keys: ', Object.keys(symbol));
             console.log(`Symbol text: ${symbol.text}`);
             console.log(`Symbol confidence: ${symbol.confidence}`);
             console.log('Symbol bounding box: ', symbol.boundingBox);
+            baseSymbols.push(symbol);
           });
         });
       });
     });
   });// end
+  
+  console.log('symbols length: ', baseSymbols.length);
+
+  for (let symbolIndex = 0; symbolIndex < baseSymbols.length; symbolIndex++) {
+    const symbol: vision.protos.google.cloud.vision.v1.ISymbol = baseSymbols[symbolIndex];
+    const symbolBoundingBox: vision.protos.google.cloud.vision.v1.IBoundingPoly = symbol.boundingBox;
+    const symbolVertices = symbolBoundingBox.vertices;
+    
+    const topLeft1: point = [symbolVertices[0].x, symbolVertices[0].y ];
+    const bottomRight1: point = [symbolVertices[2].x, symbolVertices[2].y ];
+
+    console.log(symbolBoundingBox.vertices);
+    let otherSymbolIndex = symbolIndex + 1;
+    while (otherSymbolIndex < baseSymbols.length) {
+      const otherSymbol: vision.protos.google.cloud.vision.v1.ISymbol = baseSymbols[otherSymbolIndex];
+      const otherSymbolBoundingBox: vision.protos.google.cloud.vision.v1.IBoundingPoly = otherSymbol.boundingBox;
+      const otherSymbolVertices = otherSymbolBoundingBox.vertices;
+    
+      const topLeft2: point = [otherSymbolVertices[0].x, otherSymbolVertices[0].y ];
+      const bottomRight2: point = [otherSymbolVertices[2].x, otherSymbolVertices[2].y ];
+      
+      const overlap: boolean = rectanglesOverlap(topLeft1, bottomRight1, topLeft2, bottomRight2);
+      if (overlap) {
+        console.log('rectangles overlap');
+        console.log(symbolVertices);
+        console.log(otherSymbolVertices);
+      }
+      otherSymbolIndex++;
+    }
+  }
 }
 
+type point = [number, number];
+
+function rectanglesOverlap(topLeft1: point, bottomRight1: point, topLeft2: point, bottomRight2: point) {
+	if (topLeft1[0] > bottomRight2[0] || topLeft2[0] > bottomRight1[0]) {
+		return false;
+	}
+	if (topLeft1[1] > bottomRight2[1] || topLeft2[1] > bottomRight1[1]) {
+		return false;
+	}
+	return true;
+}
 export const initializeSpellChecker = () => {
 
   // https://www.npmjs.com/package/hunspell-spellchecker
