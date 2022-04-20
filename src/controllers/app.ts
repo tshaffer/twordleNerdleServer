@@ -156,28 +156,63 @@ async function visionTest2(fileName: string) {
   console.log('rectangleOverlaps');
   console.log(rectangleOverlaps);
 
-
-
-
-
+  let nonOverlappingSymbolsCount = 0;
   console.log('non overlapping symbols');
   for (let rectangleIndex = 0; rectangleIndex < baseSymbols.length; rectangleIndex++) {
     if (!rectangleOverlaps[rectangleIndex]) {
-      console.log(baseSymbols[rectangleIndex]);
-      console.log(baseSymbols[rectangleIndex].boundingBox.vertices);
+      nonOverlappingSymbolsCount++;
     }
   }
 
+  console.log('Number of rectangle overlap groups: ', Object.keys(rectangleOverlapsGroups).length);
+  console.log('Number of non overlapping symbols: ', nonOverlappingSymbolsCount);
+
+  // selected symbols
+  console.log('SELECTED SYMBOLS');
+
+  console.log('No overlap');
+  for (let rectangleIndex = 0; rectangleIndex < baseSymbols.length; rectangleIndex++) {
+    if (!rectangleOverlaps[rectangleIndex]) {
+      console.log(rectangleIndex, baseSymbols[rectangleIndex].text, baseSymbols[rectangleIndex].boundingBox.vertices);
+      // console.log(baseSymbols[rectangleIndex].text);
+      // console.log(baseSymbols[rectangleIndex]);
+      // console.log(baseSymbols[rectangleIndex].boundingBox.vertices);
+    }
+  }
+
+  console.log('Overlap');
+
+  for (const key in rectangleOverlapsGroups) {
+    if (Object.prototype.hasOwnProperty.call(rectangleOverlapsGroups, key)) {
+      const baseIndex = parseInt(key, 10);
+      const baseSymbol: vision.protos.google.cloud.vision.v1.ISymbol = baseSymbols[baseIndex];
+      const baseConfidence = baseSymbol.confidence;
+
+      let highestConfidenceIndex = baseIndex;
+      let highestConfidence = baseConfidence;
+
+      const rectangleOverlapsGroup: number[] = rectangleOverlapsGroups[key];
+      for (let index = 0; index < rectangleOverlapsGroup.length; index++) {
+        const overlappedRectangleIndex: number = rectangleOverlapsGroup[index];
+        const overlappedSymbol: vision.protos.google.cloud.vision.v1.ISymbol = baseSymbols[overlappedRectangleIndex];
+        const overlappedConfidence = baseSymbol.confidence;
+
+        if (overlappedConfidence > overlappedSymbol) {
+          highestConfidenceIndex = overlappedRectangleIndex;
+          highestConfidence = overlappedConfidence;
+        }
+      }
+      console.log(highestConfidenceIndex, baseSymbols[highestConfidenceIndex].text, baseSymbols[highestConfidenceIndex].boundingBox.vertices);
+      // console.log(highestConfidence);
+      // console.log(baseSymbols[highestConfidenceIndex].text);
+    }
+
+  }
 }
 
 export interface overlapGroupMap {
   [id: number]: number[]; // index to array of indices
 }
-
-// interface overlapGroup {
-//   baseRectangleIndex: number,
-//   overlappingRectangleIndices: number[]
-// };
 
 type point = [number, number];
 
