@@ -42,7 +42,7 @@ async function visionTest2(fileName: string) {
   const fullTextAnnotation: vision.protos.google.cloud.vision.v1.ITextAnnotation = result.fullTextAnnotation;
   // console.log('fullTextAnnotation keys: ', Object.keys(fullTextAnnotation));
   // console.log(`Full text: ${fullTextAnnotation.text}`);
-  
+
   // vision.protos.google.cloud.vision.v1.
   const pages: vision.protos.google.cloud.vision.v1.IPage[] = fullTextAnnotation.pages;
   // pages.forEach((page: vision.protos.google.cloud.vision.v1.IPage) => {
@@ -99,48 +99,96 @@ async function visionTest2(fileName: string) {
       });
     });
   });// end
-  
+
   console.log('symbols length: ', baseSymbols.length);
+
+  const rectangleOverlaps: boolean[] = [];
+
+  for (let rectangleIndex = 0; rectangleIndex < baseSymbols.length; rectangleIndex++) {
+    rectangleOverlaps.push(false);
+  }
+
+  const rectangleOverlapsGroups: overlapGroupMap = {};
 
   for (let symbolIndex = 0; symbolIndex < baseSymbols.length; symbolIndex++) {
     const symbol: vision.protos.google.cloud.vision.v1.ISymbol = baseSymbols[symbolIndex];
     const symbolBoundingBox: vision.protos.google.cloud.vision.v1.IBoundingPoly = symbol.boundingBox;
     const symbolVertices = symbolBoundingBox.vertices;
-    
-    const topLeft1: point = [symbolVertices[0].x, symbolVertices[0].y ];
-    const bottomRight1: point = [symbolVertices[2].x, symbolVertices[2].y ];
 
-    console.log(symbolBoundingBox.vertices);
+    const topLeft1: point = [symbolVertices[0].x, symbolVertices[0].y];
+    const bottomRight1: point = [symbolVertices[2].x, symbolVertices[2].y];
+
     let otherSymbolIndex = symbolIndex + 1;
     while (otherSymbolIndex < baseSymbols.length) {
       const otherSymbol: vision.protos.google.cloud.vision.v1.ISymbol = baseSymbols[otherSymbolIndex];
       const otherSymbolBoundingBox: vision.protos.google.cloud.vision.v1.IBoundingPoly = otherSymbol.boundingBox;
       const otherSymbolVertices = otherSymbolBoundingBox.vertices;
-    
-      const topLeft2: point = [otherSymbolVertices[0].x, otherSymbolVertices[0].y ];
-      const bottomRight2: point = [otherSymbolVertices[2].x, otherSymbolVertices[2].y ];
-      
+
+      const topLeft2: point = [otherSymbolVertices[0].x, otherSymbolVertices[0].y];
+      const bottomRight2: point = [otherSymbolVertices[2].x, otherSymbolVertices[2].y];
+
       const overlap: boolean = rectanglesOverlap(topLeft1, bottomRight1, topLeft2, bottomRight2);
       if (overlap) {
-        console.log('rectangles overlap');
-        console.log(symbolVertices);
-        console.log(otherSymbolVertices);
+        console.log('rectangles overlap: ', symbolIndex, otherSymbolIndex);
+
+        if (!rectangleOverlaps[otherSymbolIndex]) {
+          if (!rectangleOverlapsGroups.hasOwnProperty(symbolIndex)) {
+            rectangleOverlapsGroups[symbolIndex] = [];
+          }
+          rectangleOverlapsGroups[symbolIndex].push(otherSymbolIndex);
+        }
+
+        rectangleOverlaps[symbolIndex] = true;
+        rectangleOverlaps[otherSymbolIndex] = true;
+
+        console.log(symbol);
+        console.log(otherSymbol);
+        console.log(symbol.boundingBox.vertices);
+        console.log(otherSymbol.boundingBox.vertices);
       }
       otherSymbolIndex++;
     }
   }
+
+  console.log('rectangleOverlapsGroups');
+  console.log(rectangleOverlapsGroups);
+
+  console.log('rectangleOverlaps');
+  console.log(rectangleOverlaps);
+
+
+
+
+
+  console.log('non overlapping symbols');
+  for (let rectangleIndex = 0; rectangleIndex < baseSymbols.length; rectangleIndex++) {
+    if (!rectangleOverlaps[rectangleIndex]) {
+      console.log(baseSymbols[rectangleIndex]);
+      console.log(baseSymbols[rectangleIndex].boundingBox.vertices);
+    }
+  }
+
 }
+
+export interface overlapGroupMap {
+  [id: number]: number[]; // index to array of indices
+}
+
+// interface overlapGroup {
+//   baseRectangleIndex: number,
+//   overlappingRectangleIndices: number[]
+// };
 
 type point = [number, number];
 
 function rectanglesOverlap(topLeft1: point, bottomRight1: point, topLeft2: point, bottomRight2: point) {
-	if (topLeft1[0] > bottomRight2[0] || topLeft2[0] > bottomRight1[0]) {
-		return false;
-	}
-	if (topLeft1[1] > bottomRight2[1] || topLeft2[1] > bottomRight1[1]) {
-		return false;
-	}
-	return true;
+  if (topLeft1[0] > bottomRight2[0] || topLeft2[0] > bottomRight1[0]) {
+    return false;
+  }
+  if (topLeft1[1] > bottomRight2[1] || topLeft2[1] > bottomRight1[1]) {
+    return false;
+  }
+  return true;
 }
 export const initializeSpellChecker = () => {
 
