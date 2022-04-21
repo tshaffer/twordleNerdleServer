@@ -3,7 +3,7 @@ const en = require('dictionary-en');
 import * as fs from 'fs';
 import * as tmp from 'tmp';
 
-import { isNil, join } from 'lodash';
+import { isBoolean, isNil, sortBy } from 'lodash';
 
 import { version } from '../version';
 
@@ -28,9 +28,19 @@ async function visionTest() {
   detections.forEach(text => console.log(text));
 }
 
+interface TwordleSymbol extends vision.protos.google.cloud.vision.v1.ISymbol {
+  rowIndex: number,
+  useSymbol: boolean;
+};
+
 // before
 // https://cloud.google.com/vision/docs/samples/vision-fulltext-detection
 async function visionTest2(fileName: string) {
+
+  let imageHeight;
+  let imageWidth;
+  let rowHeight;
+  let numberOfRows = 0;
 
   const client = new vision.ImageAnnotatorClient();
 
@@ -82,8 +92,16 @@ async function visionTest2(fileName: string) {
   const baseSymbols: vision.protos.google.cloud.vision.v1.ISymbol[] = [];
   pages.forEach((page: vision.protos.google.cloud.vision.v1.IPage) => {
     console.log('page width, height: ', page.width, page.height);
+    imageWidth = page.width;
+    imageHeight = page.height;
     const blocks: vision.protos.google.cloud.vision.v1.IBlock[] = page.blocks;
-    blocks.forEach((block: vision.protos.google.cloud.vision.v1.IBlock) => {
+    numberOfRows = blocks.length;
+    rowHeight = Math.trunc(imageHeight / numberOfRows);
+
+    blocks.forEach((block: vision.protos.google.cloud.vision.v1.IBlock, rowIndex) => {
+
+      console.log('Block bounding box vertices');
+      console.log(block.boundingBox.vertices);
       const paragraphs: vision.protos.google.cloud.vision.v1.IParagraph[] = block.paragraphs;
       paragraphs.forEach(paragraph => {
         const words: vision.protos.google.cloud.vision.v1.IWord[] = paragraph.words;
@@ -93,6 +111,7 @@ async function visionTest2(fileName: string) {
             console.log(`Symbol text: ${symbol.text}`);
             console.log(`Symbol confidence: ${symbol.confidence}`);
             console.log('Symbol bounding box: ', symbol.boundingBox);
+            (symbol as TwordleSymbol).rowIndex = rowIndex;
             baseSymbols.push(symbol);
           });
         });
@@ -174,6 +193,7 @@ async function visionTest2(fileName: string) {
   for (let rectangleIndex = 0; rectangleIndex < baseSymbols.length; rectangleIndex++) {
     if (!rectangleOverlaps[rectangleIndex]) {
       console.log(rectangleIndex, baseSymbols[rectangleIndex].text, baseSymbols[rectangleIndex].boundingBox.vertices);
+      (baseSymbols[rectangleIndex] as TwordleSymbol).useSymbol = true;
       // console.log(baseSymbols[rectangleIndex].text);
       // console.log(baseSymbols[rectangleIndex]);
       // console.log(baseSymbols[rectangleIndex].boundingBox.vertices);
@@ -181,17 +201,17 @@ async function visionTest2(fileName: string) {
   }
 
   console.log('Overlap');
-
-  for (const key in rectangleOverlapsGroups) {
-    if (Object.prototype.hasOwnProperty.call(rectangleOverlapsGroups, key)) {
-      const baseIndex = parseInt(key, 10);
+  
+  for (const baseSymbolIndex in rectangleOverlapsGroups) {
+    const baseIndex = parseInt(baseSymbolIndex, 10);
+    if (Object.prototype.hasOwnProperty.call(rectangleOverlapsGroups, baseSymbolIndex)) {
       const baseSymbol: vision.protos.google.cloud.vision.v1.ISymbol = baseSymbols[baseIndex];
       const baseConfidence = baseSymbol.confidence;
 
       let highestConfidenceIndex = baseIndex;
       let highestConfidence = baseConfidence;
 
-      const rectangleOverlapsGroup: number[] = rectangleOverlapsGroups[key];
+      const rectangleOverlapsGroup: number[] = rectangleOverlapsGroups[baseSymbolIndex];
       for (let index = 0; index < rectangleOverlapsGroup.length; index++) {
         const overlappedRectangleIndex: number = rectangleOverlapsGroup[index];
         const overlappedSymbol: vision.protos.google.cloud.vision.v1.ISymbol = baseSymbols[overlappedRectangleIndex];
@@ -203,12 +223,49 @@ async function visionTest2(fileName: string) {
         }
       }
       console.log(highestConfidenceIndex, baseSymbols[highestConfidenceIndex].text, baseSymbols[highestConfidenceIndex].boundingBox.vertices);
+      (baseSymbols[highestConfidenceIndex] as TwordleSymbol).useSymbol = true;
+
       // console.log(highestConfidence);
       // console.log(baseSymbols[highestConfidenceIndex].text);
     }
 
   }
+
+  const allSymbolRows: symbolArray[] = [];
+
+  for (let i = 0; i < numberOfRows; i++) {
+    allSymbolRows.push([]);
+  }
+  baseSymbols.forEach((baseSymbol: TwordleSymbol) => {
+    if (isBoolean(baseSymbol.useSymbol) && baseSymbol.useSymbol) {
+      const symbolWidth = baseSymbol.boundingBox.vertices[1].x - baseSymbol.boundingBox.vertices[0].x;
+      if (symbolWidth > 1) {
+        const symbolRowIndex = baseSymbol.rowIndex;
+        allSymbolRows[symbolRowIndex].push(baseSymbol);    
+      }
+    }
+  })
+
+  allSymbolRows.forEach((symbolRow, rowIndex) => {
+    console.log('Row ', rowIndex, symbolRow);
+    symbolRow.sort((a: TwordleSymbol, b: TwordleSymbol) => {
+      if (a.boundingBox.vertices[0].x < b.boundingBox.vertices[0].x) {
+        return -1;
+      } else if (a.boundingBox.vertices[0].x > b.boundingBox.vertices[0].x) {
+        return 1;
+      } return 0;
+    })
+  });
+
+  console.log('after sort');
+  allSymbolRows.forEach((symbolRow, rowIndex) => {
+    symbolRow.forEach((symbol) => {
+      console.log(symbol.rowIndex, symbol.text, symbol.boundingBox.vertices);
+    })
+  });
 }
+
+type symbolArray = TwordleSymbol[];
 
 export interface overlapGroupMap {
   [id: number]: number[]; // index to array of indices
