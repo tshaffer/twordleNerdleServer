@@ -50,8 +50,8 @@ async function visionTest2(fileName: string) {
   // console.log('result keys: ', Object.keys(result));
 
   const fullTextAnnotation: vision.protos.google.cloud.vision.v1.ITextAnnotation = result.fullTextAnnotation;
-  // console.log('fullTextAnnotation keys: ', Object.keys(fullTextAnnotation));
-  // console.log(`Full text: ${fullTextAnnotation.text}`);
+  console.log('fullTextAnnotation keys: ', Object.keys(fullTextAnnotation));
+  console.log(`Full text: ${fullTextAnnotation.text}`);
 
   // vision.protos.google.cloud.vision.v1.
   const pages: vision.protos.google.cloud.vision.v1.IPage[] = fullTextAnnotation.pages;
@@ -204,6 +204,7 @@ async function visionTest2(fileName: string) {
   
   for (const baseSymbolIndex in rectangleOverlapsGroups) {
     const baseIndex = parseInt(baseSymbolIndex, 10);
+
     if (Object.prototype.hasOwnProperty.call(rectangleOverlapsGroups, baseSymbolIndex)) {
       const baseSymbol: vision.protos.google.cloud.vision.v1.ISymbol = baseSymbols[baseIndex];
       const baseConfidence = baseSymbol.confidence;
@@ -211,13 +212,21 @@ async function visionTest2(fileName: string) {
       let highestConfidenceIndex = baseIndex;
       let highestConfidence = baseConfidence;
 
+      if (baseIndex === 9) {
+        console.log('baseIndex 9', baseSymbol);
+      }
+  
       const rectangleOverlapsGroup: number[] = rectangleOverlapsGroups[baseSymbolIndex];
       for (let index = 0; index < rectangleOverlapsGroup.length; index++) {
         const overlappedRectangleIndex: number = rectangleOverlapsGroup[index];
         const overlappedSymbol: vision.protos.google.cloud.vision.v1.ISymbol = baseSymbols[overlappedRectangleIndex];
-        const overlappedConfidence = baseSymbol.confidence;
+        const overlappedConfidence = overlappedSymbol.confidence;
 
-        if (overlappedConfidence > overlappedSymbol) {
+        if (overlappedRectangleIndex === 14) {
+          console.log('overlappedRectangleIndex 14', overlappedSymbol);
+        }
+  
+        if (overlappedConfidence > highestConfidence) {
           highestConfidenceIndex = overlappedRectangleIndex;
           highestConfidence = overlappedConfidence;
         }
