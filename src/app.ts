@@ -4,17 +4,17 @@ import cors from 'cors';
 // import cookieParser from 'cookie-parser';
 import { readConfig } from './config';
 
-import { getGuesses, initializeSpellChecker } from './controllers';
+import { initializeSpellChecker } from './controllers';
 
 const bodyParser = require('body-parser');
 
 import { Routes } from './routes/routes';
 
 import {
+  getGuesses,
   getTest,
   postTest,
   getVersion,
-  getWords,
 } from './controllers';
 
 class App {
@@ -41,7 +41,6 @@ class App {
     // app routes
     this.app.get('/api/v1/version', getVersion);
     
-    this.app.post('/api/v1/getWords', getWords);
     this.app.post('/api/v1/getGuesses', getGuesses);
 
     this.app.get('/api/v1/test', getTest);
