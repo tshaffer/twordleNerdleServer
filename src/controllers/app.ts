@@ -347,7 +347,7 @@ export const getWords = (request: Request, response: Response, next: any) => {
           for (let clalIndex4 = 0; clalIndex4 < candidateLettersAtLocation[4].length; clalIndex4++) {
             const clal4 = candidateLettersAtLocation[4][clalIndex4];
 
-            const candidateWord: string = clal0 + clal1 + clal2 + clal3 + clal4;
+            const candidateWord: string = ((clal0 + clal1 + clal2 + clal3 + clal4) as string).toUpperCase();
 
             // console.log(candidateWord + candidateWord.length);
 
