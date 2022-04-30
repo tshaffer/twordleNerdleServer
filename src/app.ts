@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import multer from 'multer';
 
 // import cookieParser from 'cookie-parser';
 import { readConfig } from './config';
@@ -27,7 +28,7 @@ class App {
     readConfig('/Users/tedshaffer/Documents/Projects/twordleNerdleServer/src/config/config.env');
 
     initializeSpellChecker();
-    
+
     this.app = express();
     this.config();
 
@@ -40,12 +41,32 @@ class App {
 
     // app routes
     this.app.get('/api/v1/version', getVersion);
-    
+
     this.app.post('/api/v1/getGuesses', getGuesses);
     this.app.post('/api/v1/getWords', getWords);
 
     this.app.get('/api/v1/test', getTest);
     this.app.post('/api/v1/test', postTest);
+
+    const storage = multer.diskStorage({
+      destination: function (req, file, cb) {
+        cb(null, 'public')
+      },
+      filename: function (req, file, cb) {
+        cb(null, Date.now() + '-' + file.originalname)
+      }
+    })
+    const upload = multer({ storage: storage }).single('file')
+    this.app.post('/api/v1/upload', (req, res) => {
+      upload(req, res, function (err) {
+        if (err instanceof multer.MulterError) {
+          return res.status(500).json(err)
+        } else if (err) {
+          return res.status(500).json(err)
+        }
+        return res.status(200).send(req.file)
+      })
+    });
   }
 
   private config(): void {
