@@ -96,7 +96,7 @@ async function textFromImage(response: Response, fileName: string) {
   console.log('textFromImage');
 
   let imageWidth;
-  let imageHeight;
+  let imageHeight: number;
   let rowHeight;
   let numberOfRows = 0;
 
@@ -110,17 +110,22 @@ async function textFromImage(response: Response, fileName: string) {
   const baseSymbols: vision.protos.google.cloud.vision.v1.ISymbol[] = [];
 
   pages.forEach((page: vision.protos.google.cloud.vision.v1.IPage) => {
-    
+
     imageWidth = page.width;
     imageHeight = page.height;
-    
-    const blocks: vision.protos.google.cloud.vision.v1.IBlock[] = page.blocks;
-    numberOfRows = blocks.length;
-    rowHeight = Math.trunc(imageHeight / numberOfRows);
 
-    blocks.forEach((block: vision.protos.google.cloud.vision.v1.IBlock, rowIndex) => {
+    const blocks: vision.protos.google.cloud.vision.v1.IBlock[] = page.blocks;
+    // numberOfRows = blocks.length;
+    // rowHeight = Math.trunc(imageHeight / numberOfRows);
+    if (blocks.length > 1) {
+      console.log('****** Number of blocks = ', blocks.length, ' ******');
+    }
+    // blocks.forEach((block: vision.protos.google.cloud.vision.v1.IBlock, rowIndex) => {
+    blocks.forEach((block: vision.protos.google.cloud.vision.v1.IBlock) => {
       const paragraphs: vision.protos.google.cloud.vision.v1.IParagraph[] = block.paragraphs;
-      paragraphs.forEach(paragraph => {
+      numberOfRows = paragraphs.length;
+      rowHeight = Math.trunc(imageHeight / numberOfRows);
+      paragraphs.forEach((paragraph, rowIndex) => {
         const words: vision.protos.google.cloud.vision.v1.IWord[] = paragraph.words;
         words.forEach(word => {
           const symbols: vision.protos.google.cloud.vision.v1.ISymbol[] = word.symbols;
@@ -209,7 +214,7 @@ async function textFromImage(response: Response, fileName: string) {
   }
 
   console.log('Overlap');
-  
+
   for (const baseSymbolIndex in rectangleOverlapsGroups) {
     const baseIndex = parseInt(baseSymbolIndex, 10);
 
@@ -223,7 +228,7 @@ async function textFromImage(response: Response, fileName: string) {
       if (baseIndex === 9) {
         console.log('baseIndex 9', baseSymbol);
       }
-  
+
       const rectangleOverlapsGroup: number[] = rectangleOverlapsGroups[baseSymbolIndex];
       for (let index = 0; index < rectangleOverlapsGroup.length; index++) {
         const overlappedRectangleIndex: number = rectangleOverlapsGroup[index];
@@ -233,7 +238,7 @@ async function textFromImage(response: Response, fileName: string) {
         if (overlappedRectangleIndex === 14) {
           console.log('overlappedRectangleIndex 14', overlappedSymbol);
         }
-  
+
         if (overlappedConfidence > highestConfidence) {
           highestConfidenceIndex = overlappedRectangleIndex;
           highestConfidence = overlappedConfidence;
@@ -258,7 +263,7 @@ async function textFromImage(response: Response, fileName: string) {
       const symbolWidth = baseSymbol.boundingBox.vertices[1].x - baseSymbol.boundingBox.vertices[0].x;
       if (symbolWidth > 1) {
         const symbolRowIndex = baseSymbol.rowIndex;
-        allSymbolRows[symbolRowIndex].push(baseSymbol);    
+        allSymbolRows[symbolRowIndex].push(baseSymbol);
       }
     }
   })
