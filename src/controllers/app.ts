@@ -2,6 +2,7 @@ import { Request, response, Response } from 'express';
 const en = require('dictionary-en');
 import * as fs from 'fs';
 import * as tmp from 'tmp';
+import multer from 'multer';
 
 import { isBoolean, isNil } from 'lodash';
 
@@ -386,3 +387,23 @@ export const getWords = (request: Request, response: Response, next: any) => {
     words,
   });
 };
+
+export const uploadFile = (req: Request, res: Response, next: any) => {
+  const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, 'public');
+    },
+    filename: function (req, file, cb) {
+      cb(null, Date.now() + '-' + file.originalname);
+    }
+  })
+  const upload = multer({ storage: storage }).single('file')
+  upload(req, res, function (err) {
+    if (err instanceof multer.MulterError) {
+      return res.status(500).json(err);
+    } else if (err) {
+      return res.status(500).json(err);
+    }
+    return res.status(200).send(req.file);
+  })
+}
