@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as tmp from 'tmp';
 import multer from 'multer';
 
-import { isBoolean, isNil } from 'lodash';
+import { isBoolean, isNil, lt } from 'lodash';
 
 import { version } from '../version';
 
@@ -317,6 +317,267 @@ const base64ToImg = (img: string): Promise<string> => {
 }
 
 export const getWords = (request: Request, response: Response, next: any) => {
+
+  const { pathOnServer, guesses } = request.body;
+
+  var data = fs.readFileSync(pathOnServer);
+
+  const png: PNGWithMetadata = PNG.sync.read(data, {
+    filterType: -1,
+  });
+  console.log('png parsed');
+  console.log(png.width);
+  console.log(png.height);
+
+  findBackgroundColors(png.data);
+
+  const imageWidth = png.width;
+  const imageHeight = png.height;
+
+  const numRows = guesses.length;
+  const numColumns = 5;
+
+  // BOGUS
+  const pixelsPerColumn = Math.trunc(imageWidth / numColumns);
+  const pixelsPerRow = Math.trunc(imageHeight / numRows);
+
+  /*
+    {
+      lettersAtExactLocation,
+      lettersNotAtExactLocation,
+      lettersNotInWord,
+    }
+  */
+  const letterAnswerTypes = getLetterAnswerTypes(png.data, guesses, numRows, numColumns, pixelsPerRow, pixelsPerColumn);
+
+  // convertBackgroundColorsToBlack(png.data);
+
+  const words = getWordsPrep(letterAnswerTypes);
+  console.log('getWordsPrep - words = ', words);
+
+  response.status(200).json({
+    success: true,
+    words,
+  });
+
+};
+
+const getWordsPrep = (letterAnswerTypes: any) => {
+
+  const candidateLettersAtLocation: string[][] = [];
+
+  const { lettersAtExactLocation, lettersNotAtExactLocation, lettersNotInWord } = letterAnswerTypes;
+  const arrayOfLettersNotInWord: string[] = lettersNotInWord.split('');
+
+  for (let i = 0; i < 5; i++) {
+    candidateLettersAtLocation[i] = [];
+
+    // console.log('Candidate letters at location ' + i);
+
+    // check to see if there's an exact letter at this location
+    if (lettersAtExactLocation[i] !== '') {
+
+      candidateLettersAtLocation[i].push(lettersAtExactLocation[i]);
+
+      // console.log('Exact letter at location: ' + candidateLettersAtLocation[i]);
+
+    } else {
+
+      // initialize to include all characters
+      for (let j = 0; j < 26; j++) {
+        // candidateLettersAtLocation[i].push(String.fromCharCode(j + 97));
+        candidateLettersAtLocation[i].push(String.fromCharCode(j + 65));
+      }
+
+      let candidateLettersAtThisLocation: string[] = candidateLettersAtLocation[i];
+
+      // eliminate lettersNotInWord
+      for (let j = 0; j < arrayOfLettersNotInWord.length; j++) {
+        const letterNotInWord: string = arrayOfLettersNotInWord[j];
+        candidateLettersAtThisLocation = candidateLettersAtThisLocation.filter(item => item !== letterNotInWord);
+      }
+      // console.log(candidateLettersAtThisLocation);
+
+
+      // eliminate lettersNotAtExactLocation
+      const lettersNotAtThisLocation: string = lettersNotAtExactLocation[i];
+      if (!isNil(lettersNotAtThisLocation)) {
+        const arrayOfLettersNotAtThisLocation: string[] = lettersNotAtThisLocation.split('');
+        for (let j = 0; j < arrayOfLettersNotAtThisLocation.length; j++) {
+          const letterNotAtThisLocation: string = arrayOfLettersNotAtThisLocation[j];
+          candidateLettersAtThisLocation = candidateLettersAtThisLocation.filter(item => item !== letterNotAtThisLocation);
+        }
+      }
+      console.log(candidateLettersAtThisLocation);
+
+      candidateLettersAtLocation[i] = candidateLettersAtThisLocation;
+    }
+  }
+
+  const lettersSomewhereInWord: string[] = [];
+  lettersNotAtExactLocation.forEach((lettersNotAtThisLocation: string) => {
+    if (!isNil(lettersNotAtThisLocation)) {
+      const lettersNotAtThisLocationArray = lettersNotAtThisLocation.split('');
+      if (!isNil(lettersNotAtThisLocationArray)) {
+        lettersNotAtThisLocationArray.forEach((letterNotAtThisLocation: string) => {
+          if (lettersSomewhereInWord.indexOf(letterNotAtThisLocation)) {
+            lettersSomewhereInWord.push(letterNotAtThisLocation);
+          }
+        });
+      }
+    }
+  });
+
+  // candidateLettersAtLocation,
+  // lettersSomewhereInWord,
+  const words: string[] = [];
+
+  for (let clalIndex0 = 0; clalIndex0 < candidateLettersAtLocation[0].length; clalIndex0++) {
+    const clal0 = candidateLettersAtLocation[0][clalIndex0];
+    for (let clalIndex1 = 0; clalIndex1 < candidateLettersAtLocation[1].length; clalIndex1++) {
+      const clal1 = candidateLettersAtLocation[1][clalIndex1];
+      for (let clalIndex2 = 0; clalIndex2 < candidateLettersAtLocation[2].length; clalIndex2++) {
+        const clal2 = candidateLettersAtLocation[2][clalIndex2];
+        for (let clalIndex3 = 0; clalIndex3 < candidateLettersAtLocation[3].length; clalIndex3++) {
+          const clal3 = candidateLettersAtLocation[3][clalIndex3];
+          for (let clalIndex4 = 0; clalIndex4 < candidateLettersAtLocation[4].length; clalIndex4++) {
+            const clal4 = candidateLettersAtLocation[4][clalIndex4];
+
+            const candidateWord: string = ((clal0 + clal1 + clal2 + clal3 + clal4) as string).toUpperCase();
+
+            // console.log(candidateWord + candidateWord.length);
+
+            // ensure that word contains all lettersNotAtExactLocation
+            let allLettersSomewhereInWordAreInThisWord = true;
+            const candidateWordAsArray = candidateWord.split('');
+            for (const letterSomewhereInWord of lettersSomewhereInWord) {
+              if (!isNil(letterSomewhereInWord)) {
+                if (candidateWordAsArray.indexOf(letterSomewhereInWord) < 0) {
+                  allLettersSomewhereInWordAreInThisWord = false;
+                  break;
+                }
+              }
+            }
+
+            if (allLettersSomewhereInWordAreInThisWord) {
+              const isWord = spellchecker.check(candidateWord);
+              // console.log(candidateWord + ' ' + isWord);
+              if (isWord) {
+                words.push(candidateWord);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return words;
+}
+
+const getLetterAnswerTypes = (buffer: Buffer, guesses: string[], numRows: number, numColumns: number, pixelsPerColumn: number, pixelsPerRow: number): any => {
+
+  const imageWidth = 728;
+  const imageHeight = 590;
+
+  const pixelOffsetFromLeft = Math.trunc(pixelsPerColumn / 4);
+  const pixelOffsetFromTop = Math.trunc(pixelsPerRow / 4);
+
+  // for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
+  //   for (let columnIndex = 0; columnIndex < numColumns; columnIndex++) {
+  //     const pixelIndex = (pixelOffsetFromTop * imageWidth) + pixelOffsetFromLeft + (pixelsPerRow * rowIndex) + (pixelsPerColumn * columnIndex)
+  //     const indexIntoBuffer = pixelIndex * 4;
+
+  //     const data: Uint8ClampedArray = new Uint8ClampedArray(4);
+  //     const imgData: ImageData = {
+  //       data,
+  //       height: 0,
+  //       width: 0,
+  //     }
+  //     imgData.data[0] = buffer[indexIntoBuffer];
+  //     imgData.data[1] = buffer[indexIntoBuffer + 1];
+  //     imgData.data[2] = buffer[indexIntoBuffer + 2];
+  //     imgData.data[3] = buffer[indexIntoBuffer + 3];
+
+  //     const letterAnswerType: LetterAnswerType = getLetterAnswerType(imgData);
+
+  //   }
+  // }
+
+  let lettersNotInWord: string = '';
+
+  const letterAnswerValues: LetterAnswerType[][] = [];
+  const lettersAtExactLocation: string[] = ['', '', '', '', ''];
+  const lettersNotAtExactLocation: string[] = ['', '', '', '', ''];
+
+  for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
+    letterAnswerValues.push([]);
+    const letterAnswersInRow = letterAnswerValues[rowIndex];
+    for (let columnIndex = 0; columnIndex < numColumns; columnIndex++) {
+
+      const pixelIndex = (pixelOffsetFromTop * imageWidth) + pixelOffsetFromLeft + (pixelsPerRow * rowIndex) + (pixelsPerColumn * columnIndex)
+      const indexIntoBuffer = pixelIndex * 4;
+
+      const data: Uint8ClampedArray = new Uint8ClampedArray(4);
+      const imgData: ImageData = {
+        data,
+        height: 0,
+        width: 0,
+      }
+      imgData.data[0] = buffer[indexIntoBuffer];
+      imgData.data[1] = buffer[indexIntoBuffer + 1];
+      imgData.data[2] = buffer[indexIntoBuffer + 2];
+      imgData.data[3] = buffer[indexIntoBuffer + 3];
+
+      const letterAnswerType: LetterAnswerType = getLetterAnswerType(imgData);
+
+
+
+      // const pixelIndex = (rowIndex * pixelsPerRow * 4) + (columnIndex * pixelsPerColumn * 4);
+
+      // const data: Uint8ClampedArray = new Uint8ClampedArray(4);
+      // const imgData: ImageData = {
+      //   data,
+      //   height: 0,
+      //   width: 0,
+      // }
+      // imgData.data[0] = buffer[pixelIndex];
+      // imgData.data[1] = buffer[pixelIndex + 1];
+      // imgData.data[2] = buffer[pixelIndex + 2];
+      // imgData.data[3] = buffer[pixelIndex + 3];
+
+      // const letterAnswerType: LetterAnswerType = getLetterAnswerType(imgData);
+
+      letterAnswersInRow.push(letterAnswerType);
+
+      const currentCharacter: string = guesses[rowIndex].charAt(columnIndex);
+
+      switch (letterAnswerType) {
+        case LetterAnswerType.InWordAtExactLocation:
+          lettersAtExactLocation[columnIndex] = currentCharacter;
+          // props.onSetLetterAtLocation(columnIndex, currentCharacter);
+          break;
+        case LetterAnswerType.InWordAtNonLocation:
+          lettersNotAtExactLocation[columnIndex] = lettersNotAtExactLocation[columnIndex] + currentCharacter;
+          // props.onSetLettersNotAtLocation(columnIndex, lettersNotAtExactLocation[columnIndex]);
+          break;
+        case LetterAnswerType.NotInWord:
+        default:
+          lettersNotInWord = lettersNotInWord + currentCharacter;
+          break;
+      }
+    }
+  }
+
+  // return lettersNotInWord;
+  return {
+    lettersAtExactLocation,
+    lettersNotAtExactLocation,
+    lettersNotInWord,
+  };
+};
+
+export const old_getWords = (request: Request, response: Response, next: any) => {
   console.log('getWords');
   console.log(request.body);
 
@@ -387,7 +648,7 @@ export const uploadFile = (request: Request, response: Response, next: any) => {
       return response.status(500).json(err);
     }
     console.log('return from upload: ', request.file);
-    pngTest(request.file.path).then( (guessesObj: any) => {
+    pngTest(request.file.path).then((guessesObj: any) => {
       // return response.status(200).send(request.file);
       console.log('return from pngTest: ', guessesObj);
       const responseData = {
@@ -397,7 +658,7 @@ export const uploadFile = (request: Request, response: Response, next: any) => {
       return response.status(200).send(responseData);
     });
   });
-}
+};
 
 const pngTest = (path: string): Promise<any> => {
 
@@ -432,7 +693,7 @@ const getGuessesFromUploadedFile = (imageWidth: number, imageHeight: number, dat
   const whiteColumns: number[] = getWhiteColumns(imageWidth, imageHeight, whiteAtImageDataRGBIndex);
   convertWhiteRowsToBlack(imageWidth, whiteRows, data as unknown as Uint8ClampedArray);
   convertWhiteColumnsToBlack(imageWidth, imageHeight, whiteColumns, data as unknown as Uint8ClampedArray);
-  convertBackgroundColorsToBlack(data as unknown as Uint8ClampedArray);
+  convertBackgroundColorsToBlack(data);
 }
 
 export const buildWhiteAtImageDataRGBIndex = (imageDataRGB: Uint8ClampedArray): boolean[] => {
@@ -527,7 +788,7 @@ export const convertWhiteColumnsToBlack = (canvasWidth: number, canvasHeight: nu
   }
 };
 
-export const convertBackgroundColorsToBlack = (imgData: Uint8ClampedArray) => {
+export const convertBackgroundColorsToBlack = (imgData: Buffer) => {
   for (let i = 0; i < imgData.length; i += 4) {
     const red = imgData[i];
     const green = imgData[i + 1];
@@ -541,12 +802,59 @@ export const convertBackgroundColorsToBlack = (imgData: Uint8ClampedArray) => {
   }
 };
 
+export const findBackgroundColors = (imgData: Buffer) => {
+  const knownLetterAnswerTypes: any = {};
+  for (let index = 0; index < imgData.length; index += 4) {
+    const red = imgData[index];
+    const green = imgData[index + 1];
+    const blue = imgData[index + 2];
+    const letterAnswerType: LetterAnswerType = getLetterAnswerTypeRgb(red, green, blue);
+    if (letterAnswerType !== LetterAnswerType.Unknown) {
+      const ltat: string = letterAnswerType.toString();
+      if (knownLetterAnswerTypes.hasOwnProperty(ltat)) {
+        knownLetterAnswerTypes[ltat] = knownLetterAnswerTypes[ltat] + 1;
+      } else {
+        knownLetterAnswerTypes[ltat] = 1;
+        console.log(index);
+      }
+    }
+  }
+
+  console.log('knownletterAnswerTypes');
+  console.log(knownLetterAnswerTypes);
+};
+
 const offsetFromPosition = (canvasWidth: number, row: number, column: number): number => {
   const offset = (row * canvasWidth * 4) + (column * 4);
   return offset;
 };
 
+export const getLetterAnswerType = (imgData: ImageData): LetterAnswerType => {
+  if (imgData.data[0] !== 255 || imgData.data[1] !== 255 || imgData.data[2] !== 255) {
+    // console.log('poo');
+    const x = 'poo';
+  }
+
+  if (isLetterAtExactLocation(imgData.data[0], imgData.data[1], imgData.data[2])) {
+    return LetterAnswerType.InWordAtExactLocation;
+  } else if (isLetterNotAtExactLocation(imgData.data[0], imgData.data[1], imgData.data[2])) {
+    return LetterAnswerType.InWordAtNonLocation;
+  } else if (isLetterNotInWord(imgData.data[0], imgData.data[1], imgData.data[2])) {
+    return LetterAnswerType.NotInWord;
+    // } else if (!isLetterWhite(imgData.data[0], imgData.data[1], imgData.data[2])) {
+    //   console.log('letter unknown but not white: ', imgData.data[0], imgData.data[1], imgData.data[2]);
+  }
+  return LetterAnswerType.Unknown;
+};
+
+
 const getLetterAnswerTypeRgb = (red: any, green: any, blue: any): LetterAnswerType => {
+
+  if (red !== 255 || green !== 255 || blue !== 255) {
+    // console.log('poo');
+    const y = 'poo';
+  }
+
   if (isLetterAtExactLocation(red, green, blue)) {
     return LetterAnswerType.InWordAtExactLocation;
   } else if (isLetterNotAtExactLocation(red, green, blue)) {
