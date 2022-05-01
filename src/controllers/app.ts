@@ -91,12 +91,18 @@ export const getGuesses = (request: Request, response: Response, next: any) => {
   const { imageDataBase64 } = request.body;
 
   base64ToImg(imageDataBase64).then((filePath) => {
-    textFromImage(response, filePath);
+
+    textFromImage(filePath).then((data) => {
+      console.log('send response');
+      console.log(data);
+
+      response.json(data);
+    });
   });
 
 }
 
-async function textFromImage(response: Response, fileName: string) {
+async function textFromImage(fileName: string) {
 
   console.log('textFromImage');
 
@@ -299,10 +305,8 @@ async function textFromImage(response: Response, fileName: string) {
     guesses,
   };
 
-  console.log('send response');
-  console.log(data);
+  return data;
 
-  response.json(data);
 }
 
 
@@ -430,6 +434,14 @@ const pngTest = (path: string) => {
   const buffer = PNG.sync.write(png);
   fs.writeFileSync('out-2.png', buffer);
 
+  textFromImage('out-2.png').then((data) => {
+    console.log('data from textFromImage using out-2.png');
+    console.log(data);
+  });
+
+  // var base64str = base64_encode('out-2.png');
+  // fs.writeFileSync('out-base64-2.txt', base64str);
+
   // for (let rowIndex = 0; rowIndex < png.height; rowIndex++) {
   //   for (let columnIndex = 0; columnIndex < png.width; columnIndex++) {
   //     let idx = (png.width * rowIndex + columnIndex) << 2;
@@ -469,6 +481,10 @@ const pngTest = (path: string) => {
   // fs.writeFileSync('out.png', buffer);
 }
 
+function base64_encode(file: string) {
+  return "data:image/gif;base64,"+fs.readFileSync(file, 'base64');
+}
+
 const getGuessesFromUploadedFile = (imageWidth: number, imageHeight: number, data: Buffer) => {
   // console.log(data);
 
@@ -480,6 +496,8 @@ const getGuessesFromUploadedFile = (imageWidth: number, imageHeight: number, dat
   convertWhiteColumnsToBlack(imageWidth, imageHeight, whiteColumns, data as unknown as Uint8ClampedArray);
   convertBackgroundColorsToBlack(data as unknown as Uint8ClampedArray);
 
+  const encoded = data.toString('base64');
+  fs.writeFileSync('out-base64.txt', "data:image/gif;base64," + encoded);
   // console.log(whiteAtImageDataRGBIndex);
 }
 
