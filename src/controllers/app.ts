@@ -1,5 +1,4 @@
-import { Request, response, Response } from 'express';
-const en = require('dictionary-en');
+import { Request, Response } from 'express';
 import * as fs from 'fs';
 import * as tmp from 'tmp';
 import multer from 'multer';
@@ -15,23 +14,6 @@ import { PNGWithMetadata } from 'pngjs';
 import { InWordAtExactLocationValue, InWordAtNonLocationValue, LetterAnswerType, NotInWordValue } from '../types';
 
 const PNG = require('pngjs').PNG;
-
-async function visionTest() {
-
-  // Creates a client
-  const client = new vision.ImageAnnotatorClient();
-
-  /**
-   * TODO(developer): Uncomment the following line before running the sample.
-   */
-  const fileName = '/Users/tedshaffer/Documents/Projects/twordleNerdleClient/programmaticallyGenerated-0.png';
-
-  // Performs text detection on the local file
-  const [result] = await client.textDetection(fileName);
-  const detections: any[] = result.textAnnotations;
-  console.log('Text:');
-  detections.forEach(text => console.log(text));
-}
 
 interface TwordleSymbol extends vision.protos.google.cloud.vision.v1.ISymbol {
   rowIndex: number,
@@ -464,29 +446,9 @@ const pngTest = (path: string) => {
   //   }
   // }
 
-  // console.log('done');
-
-  // for (let y = 0; y < png.height; y++) {
-  //   for (let x = 0; x < png.width; x++) {
-  //     let idx = (png.width * y + x) << 2;
-
-  //     if (
-  //       Math.abs(png.data[idx] - png.data[idx + 1]) <= 1 &&
-  //       Math.abs(png.data[idx + 1] - png.data[idx + 2]) <= 1
-  //     )
-  //       png.data[idx] = png.data[idx + 1] = png.data[idx + 2];
-  //   }
-  // }
-  // var buffer = PNG.sync.write(png);
-  // fs.writeFileSync('out.png', buffer);
-}
-
-function base64_encode(file: string) {
-  return "data:image/gif;base64,"+fs.readFileSync(file, 'base64');
 }
 
 const getGuessesFromUploadedFile = (imageWidth: number, imageHeight: number, data: Buffer) => {
-  // console.log(data);
 
   // each value in data is a number <= 255
   const whiteAtImageDataRGBIndex: boolean[] = buildWhiteAtImageDataRGBIndex(data as unknown as Uint8ClampedArray);
@@ -495,10 +457,6 @@ const getGuessesFromUploadedFile = (imageWidth: number, imageHeight: number, dat
   convertWhiteRowsToBlack(imageWidth, whiteRows, data as unknown as Uint8ClampedArray);
   convertWhiteColumnsToBlack(imageWidth, imageHeight, whiteColumns, data as unknown as Uint8ClampedArray);
   convertBackgroundColorsToBlack(data as unknown as Uint8ClampedArray);
-
-  const encoded = data.toString('base64');
-  fs.writeFileSync('out-base64.txt', "data:image/gif;base64," + encoded);
-  // console.log(whiteAtImageDataRGBIndex);
 }
 
 export const buildWhiteAtImageDataRGBIndex = (imageDataRGB: Uint8ClampedArray): boolean[] => {
@@ -607,13 +565,10 @@ export const convertBackgroundColorsToBlack = (imgData: Uint8ClampedArray) => {
   }
 };
 
-
-
 const offsetFromPosition = (canvasWidth: number, row: number, column: number): number => {
   const offset = (row * canvasWidth * 4) + (column * 4);
   return offset;
 };
-
 
 const getLetterAnswerTypeRgb = (red: any, green: any, blue: any): LetterAnswerType => {
   if (isLetterAtExactLocation(red, green, blue)) {
