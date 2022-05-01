@@ -390,7 +390,11 @@ export const uploadFile = (request: Request, response: Response, next: any) => {
     pngTest(request.file.path).then( (guessesObj: any) => {
       // return response.status(200).send(request.file);
       console.log('return from pngTest: ', guessesObj);
-      return response.status(200).send(guessesObj);
+      const responseData = {
+        guesses: guessesObj,
+        file: request.file,
+      };
+      return response.status(200).send(responseData);
     });
   });
 }
