@@ -158,7 +158,7 @@ async function textFromImage(fileName: string) {
 
       const overlap: boolean = rectanglesOverlap(topLeft1, bottomRight1, topLeft2, bottomRight2);
       if (overlap) {
-        console.log('rectangles overlap: ', symbolIndex, otherSymbolIndex);
+        // console.log('rectangles overlap: ', symbolIndex, otherSymbolIndex);
 
         if (!rectangleOverlaps[otherSymbolIndex]) {
           if (!rectangleOverlapsGroups.hasOwnProperty(symbolIndex)) {
@@ -170,10 +170,10 @@ async function textFromImage(fileName: string) {
         rectangleOverlaps[symbolIndex] = true;
         rectangleOverlaps[otherSymbolIndex] = true;
 
-        console.log(symbol);
-        console.log(otherSymbol);
-        console.log(symbol.boundingBox.vertices);
-        console.log(otherSymbol.boundingBox.vertices);
+        // console.log(symbol);
+        // console.log(otherSymbol);
+        // console.log(symbol.boundingBox.vertices);
+        // console.log(otherSymbol.boundingBox.vertices);
       }
       otherSymbolIndex++;
     }
@@ -188,7 +188,7 @@ async function textFromImage(fileName: string) {
 
   for (let rectangleIndex = 0; rectangleIndex < baseSymbols.length; rectangleIndex++) {
     if (!rectangleOverlaps[rectangleIndex]) {
-      console.log(rectangleIndex, baseSymbols[rectangleIndex].text, baseSymbols[rectangleIndex].boundingBox.vertices);
+      // console.log(rectangleIndex, baseSymbols[rectangleIndex].text, baseSymbols[rectangleIndex].boundingBox.vertices);
       (baseSymbols[rectangleIndex] as TwordleSymbol).useSymbol = true;
       // console.log(baseSymbols[rectangleIndex].text);
       // console.log(baseSymbols[rectangleIndex]);
@@ -198,7 +198,7 @@ async function textFromImage(fileName: string) {
 
   for (let rectangleIndex = 0; rectangleIndex < baseSymbols.length; rectangleIndex++) {
     if (!rectangleOverlaps[rectangleIndex]) {
-      console.log(rectangleIndex, baseSymbols[rectangleIndex].text, baseSymbols[rectangleIndex].boundingBox.vertices);
+      // console.log(rectangleIndex, baseSymbols[rectangleIndex].text, baseSymbols[rectangleIndex].boundingBox.vertices);
       (baseSymbols[rectangleIndex] as TwordleSymbol).useSymbol = true;
       // console.log(baseSymbols[rectangleIndex].text);
       // console.log(baseSymbols[rectangleIndex]);
@@ -206,7 +206,7 @@ async function textFromImage(fileName: string) {
     }
   }
 
-  console.log('Overlap');
+  // console.log('Overlap');
 
   for (const baseSymbolIndex in rectangleOverlapsGroups) {
     const baseIndex = parseInt(baseSymbolIndex, 10);
@@ -218,26 +218,18 @@ async function textFromImage(fileName: string) {
       let highestConfidenceIndex = baseIndex;
       let highestConfidence = baseConfidence;
 
-      if (baseIndex === 9) {
-        console.log('baseIndex 9', baseSymbol);
-      }
-
       const rectangleOverlapsGroup: number[] = rectangleOverlapsGroups[baseSymbolIndex];
       for (let index = 0; index < rectangleOverlapsGroup.length; index++) {
         const overlappedRectangleIndex: number = rectangleOverlapsGroup[index];
         const overlappedSymbol: vision.protos.google.cloud.vision.v1.ISymbol = baseSymbols[overlappedRectangleIndex];
         const overlappedConfidence = overlappedSymbol.confidence;
 
-        if (overlappedRectangleIndex === 14) {
-          console.log('overlappedRectangleIndex 14', overlappedSymbol);
-        }
-
         if (overlappedConfidence > highestConfidence) {
           highestConfidenceIndex = overlappedRectangleIndex;
           highestConfidence = overlappedConfidence;
         }
       }
-      console.log(highestConfidenceIndex, baseSymbols[highestConfidenceIndex].text, baseSymbols[highestConfidenceIndex].boundingBox.vertices);
+      // console.log(highestConfidenceIndex, baseSymbols[highestConfidenceIndex].text, baseSymbols[highestConfidenceIndex].boundingBox.vertices);
       (baseSymbols[highestConfidenceIndex] as TwordleSymbol).useSymbol = true;
 
       // console.log(highestConfidence);
@@ -262,7 +254,7 @@ async function textFromImage(fileName: string) {
   })
 
   allSymbolRows.forEach((symbolRow, rowIndex) => {
-    console.log('Row ', rowIndex, symbolRow);
+    // console.log('Row ', rowIndex, symbolRow);
     symbolRow.sort((a: TwordleSymbol, b: TwordleSymbol) => {
       if (a.boundingBox.vertices[0].x < b.boundingBox.vertices[0].x) {
         return -1;
@@ -274,12 +266,12 @@ async function textFromImage(fileName: string) {
 
   const guesses: string[] = [];
 
-  console.log('after sort');
+  // console.log('after sort');
   allSymbolRows.forEach((symbolRow, rowIndex) => {
     guesses.push('');
     symbolRow.forEach((symbol) => {
       guesses[rowIndex] += symbol.text;
-      console.log(symbol.rowIndex, symbol.text, symbol.boundingBox.vertices);
+      // console.log(symbol.rowIndex, symbol.text, symbol.boundingBox.vertices);
     })
   });
 
@@ -395,12 +387,15 @@ export const uploadFile = (request: Request, response: Response, next: any) => {
       return response.status(500).json(err);
     }
     console.log('return from upload: ', request.file);
-    pngTest(request.file.path);
-    return response.status(200).send(request.file);
+    pngTest(request.file.path).then( (guessesObj: any) => {
+      // return response.status(200).send(request.file);
+      console.log('return from pngTest: ', guessesObj);
+      return response.status(200).send(guessesObj);
+    });
   });
 }
 
-const pngTest = (path: string) => {
+const pngTest = (path: string): Promise<any> => {
 
   var data = fs.readFileSync(path);
   // var png: PNGWithMetadata = PNG.sync.read(data);
@@ -416,35 +411,12 @@ const pngTest = (path: string) => {
   const buffer = PNG.sync.write(png);
   fs.writeFileSync('out-2.png', buffer);
 
-  textFromImage('out-2.png').then((data) => {
+  return textFromImage('out-2.png').then((data) => {
     console.log('data from textFromImage using out-2.png');
     console.log(data);
+
+    return data;
   });
-
-  // var base64str = base64_encode('out-2.png');
-  // fs.writeFileSync('out-base64-2.txt', base64str);
-
-  // for (let rowIndex = 0; rowIndex < png.height; rowIndex++) {
-  //   for (let columnIndex = 0; columnIndex < png.width; columnIndex++) {
-  //     let idx = (png.width * rowIndex + columnIndex) << 2;
-  //   }
-  // }
-
-  // const valueCountByValue: any = {};
-
-  // for (let rowIndex = 0; rowIndex < png.height; rowIndex++) {
-  //   for (let columnIndex = 0; columnIndex < png.width; columnIndex++) {
-  //     let idx = (png.width * rowIndex + columnIndex) << 2;
-  //     // console.log('idx: ', idx);
-  //     // console.log(png.data[idx], png.data[idx+1], png.data[idx+2], png.data[idx+3]);
-  //     const value = png.data[idx].toString() + png.data[idx+1].toString() + png.data[idx+2].toString();
-  //     if (valueCountByValue.hasOwnProperty(value)) {
-  //       valueCountByValue[value] = valueCountByValue[value] + 1;
-  //     } else {
-  //       valueCountByValue[value] = 1;
-  //     }
-  //   }
-  // }
 
 }
 
