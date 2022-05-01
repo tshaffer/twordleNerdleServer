@@ -478,31 +478,9 @@ const getWordsPrep = (letterAnswerTypes: any) => {
 const getLetterAnswerTypes = (buffer: Buffer, guesses: string[], numRows: number, numColumns: number, pixelsPerColumn: number, pixelsPerRow: number): any => {
 
   const imageWidth = 728;
-  const imageHeight = 590;
 
   const pixelOffsetFromLeft = Math.trunc(pixelsPerColumn / 4);
   const pixelOffsetFromTop = Math.trunc(pixelsPerRow / 4);
-
-  // for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
-  //   for (let columnIndex = 0; columnIndex < numColumns; columnIndex++) {
-  //     const pixelIndex = (pixelOffsetFromTop * imageWidth) + pixelOffsetFromLeft + (pixelsPerRow * rowIndex) + (pixelsPerColumn * columnIndex)
-  //     const indexIntoBuffer = pixelIndex * 4;
-
-  //     const data: Uint8ClampedArray = new Uint8ClampedArray(4);
-  //     const imgData: ImageData = {
-  //       data,
-  //       height: 0,
-  //       width: 0,
-  //     }
-  //     imgData.data[0] = buffer[indexIntoBuffer];
-  //     imgData.data[1] = buffer[indexIntoBuffer + 1];
-  //     imgData.data[2] = buffer[indexIntoBuffer + 2];
-  //     imgData.data[3] = buffer[indexIntoBuffer + 3];
-
-  //     const letterAnswerType: LetterAnswerType = getLetterAnswerType(imgData);
-
-  //   }
-  // }
 
   let lettersNotInWord: string = '';
 
@@ -515,7 +493,7 @@ const getLetterAnswerTypes = (buffer: Buffer, guesses: string[], numRows: number
     const letterAnswersInRow = letterAnswerValues[rowIndex];
     for (let columnIndex = 0; columnIndex < numColumns; columnIndex++) {
 
-      const pixelIndex = (pixelOffsetFromTop * imageWidth) + pixelOffsetFromLeft + (pixelsPerRow * rowIndex) + (pixelsPerColumn * columnIndex)
+      const pixelIndex = (pixelOffsetFromTop * imageWidth) + pixelOffsetFromLeft + (pixelsPerRow * rowIndex * imageWidth) + (pixelsPerColumn * columnIndex);
       const indexIntoBuffer = pixelIndex * 4;
 
       const data: Uint8ClampedArray = new Uint8ClampedArray(4);
@@ -531,35 +509,18 @@ const getLetterAnswerTypes = (buffer: Buffer, guesses: string[], numRows: number
 
       const letterAnswerType: LetterAnswerType = getLetterAnswerType(imgData);
 
-
-
-      // const pixelIndex = (rowIndex * pixelsPerRow * 4) + (columnIndex * pixelsPerColumn * 4);
-
-      // const data: Uint8ClampedArray = new Uint8ClampedArray(4);
-      // const imgData: ImageData = {
-      //   data,
-      //   height: 0,
-      //   width: 0,
-      // }
-      // imgData.data[0] = buffer[pixelIndex];
-      // imgData.data[1] = buffer[pixelIndex + 1];
-      // imgData.data[2] = buffer[pixelIndex + 2];
-      // imgData.data[3] = buffer[pixelIndex + 3];
-
-      // const letterAnswerType: LetterAnswerType = getLetterAnswerType(imgData);
-
       letterAnswersInRow.push(letterAnswerType);
 
       const currentCharacter: string = guesses[rowIndex].charAt(columnIndex);
 
+      console.log(rowIndex, columnIndex, currentCharacter, letterAnswerType);
+      
       switch (letterAnswerType) {
         case LetterAnswerType.InWordAtExactLocation:
           lettersAtExactLocation[columnIndex] = currentCharacter;
-          // props.onSetLetterAtLocation(columnIndex, currentCharacter);
           break;
         case LetterAnswerType.InWordAtNonLocation:
           lettersNotAtExactLocation[columnIndex] = lettersNotAtExactLocation[columnIndex] + currentCharacter;
-          // props.onSetLettersNotAtLocation(columnIndex, lettersNotAtExactLocation[columnIndex]);
           break;
         case LetterAnswerType.NotInWord:
         default:
