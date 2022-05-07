@@ -11,7 +11,7 @@ let spellchecker: { parse: (arg0: { aff: Buffer; dic: Buffer; }) => any; use: (a
 
 import * as vision from '@google-cloud/vision';
 import { PNGWithMetadata } from 'pngjs';
-import { InWordAtExactLocationValue, InWordAtNonLocationValue, LetterAnswerType, NotInWordValue } from '../types';
+import { ContentIndices, ContentIndicesByDirection, InWordAtExactLocationValue, InWordAtNonLocationValue, LetterAnswerType, NotInWordValue } from '../types';
 
 const PNG = require('pngjs').PNG;
 
@@ -900,15 +900,18 @@ export const getWords = (request: Request, response: Response, next: any) => {
   console.log(png.width);
   console.log(png.height);
 
-  const contentIndices = analyzeImageFile(pathOnServer);
+  const contentIndices: ContentIndicesByDirection = analyzeImageFile(pathOnServer);
   console.log('contentIndices', contentIndices);
+
+  getLetterTypes(png.data, png.width, png.height, contentIndices);
+
   response.status(200).json({
     success: true,
   });
 
 }
 
-const analyzeImageFile = (path: string): any => {
+const analyzeImageFile = (path: string): ContentIndicesByDirection => {
 
   var data: Buffer = fs.readFileSync(path);
   const png: PNGWithMetadata = PNG.sync.read(data, {
@@ -928,16 +931,26 @@ const analyzeImageFile = (path: string): any => {
   console.log('whiteRows: ', whiteRows);
   console.log('whiteColumns: ', whiteColumns);
 
-  const contentRowIndices = getContentRowIndices(whiteRows);
+  const contentRowIndices: ContentIndices = getContentRowIndices(whiteRows);
   console.log('contentRowIndices: ', contentRowIndices);
 
-  const contentColumnIndices = getContentColumnIndices(whiteColumns);
+  const contentColumnIndices: ContentIndices = getContentColumnIndices(whiteColumns);
   console.log('contentColumnIndices: ', contentColumnIndices);
-  
+
+  if (whiteRows[0] !== 0) {
+    contentRowIndices.startIndices.unshift(0);
+    contentRowIndices.endIndices.unshift(whiteRows[0] - 1);
+  }
+
+  if (whiteColumns[0] !== 0) {
+    contentColumnIndices.startIndices.unshift(0);
+    contentColumnIndices.endIndices.unshift(whiteColumns[0] - 1);
+  }
+
   return { contentRowIndices, contentColumnIndices };
 }
 
-const getContentRowIndices = (whiteRows: number[]): any => {
+const getContentRowIndices = (whiteRows: number[]): ContentIndices => {
 
   const dividerSize = 12;
 
@@ -963,12 +976,12 @@ const getContentRowIndices = (whiteRows: number[]): any => {
   }
 
   return {
-    contentRowStartIndices,
-    contentRowEndIndices,
+    startIndices: contentRowStartIndices,
+    endIndices: contentRowEndIndices,
   };
 }
 
-const getContentColumnIndices = (whiteColumns: number[]): any => {
+const getContentColumnIndices = (whiteColumns: number[]): ContentIndices => {
 
   const dividerSize = 12;
 
@@ -994,8 +1007,44 @@ const getContentColumnIndices = (whiteColumns: number[]): any => {
   }
 
   return {
-    contentColumnStartIndices,
-    contentColumnEndIndices,
+    startIndices: contentColumnStartIndices,
+    endIndices: contentColumnEndIndices,
   };
 }
 
+const getLetterTypes = (imageData: Buffer, imageWidth: number, imageHeight: number, contentIndicesByDirection: ContentIndicesByDirection) => {
+
+  const numRows = contentIndicesByDirection.contentRowIndices.startIndices.length;
+  const numColumns = contentIndicesByDirection.contentColumnIndices.startIndices.length;
+
+  for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
+    for (let columnIndex = 0; columnIndex < numColumns; columnIndex++) {
+      const letterAnswerType: LetterAnswerType = getLetterAnswer(imageData, imageWidth, contentIndicesByDirection, rowIndex, columnIndex);
+      console.log(rowIndex, columnIndex, letterAnswerType);
+    }
+  }
+}
+
+const getLetterAnswer = (imageData: Buffer, imageWidth: number, contentIndicesByDirection: ContentIndicesByDirection, rowIndex: number, columnIndex: number): LetterAnswerType => {
+
+  const rowDataIndex = contentIndicesByDirection.contentRowIndices.startIndices[rowIndex];
+  const columnDataIndex = contentIndicesByDirection.contentColumnIndices.startIndices[columnIndex];
+
+  const pixelIndex = (rowDataIndex * imageWidth) + columnDataIndex;
+  const indexIntoBuffer = pixelIndex * 4;
+
+  const data: Uint8ClampedArray = new Uint8ClampedArray(4);
+  const imgData: ImageData = {
+    data,
+    height: 0,
+    width: 0,
+  }
+  imgData.data[0] = imageData[indexIntoBuffer];
+  imgData.data[1] = imageData[indexIntoBuffer + 1];
+  imgData.data[2] = imageData[indexIntoBuffer + 2];
+  imgData.data[3] = imageData[indexIntoBuffer + 3];
+
+  const letterAnswerType: LetterAnswerType = getLetterAnswerType(imgData);
+
+  return letterAnswerType;
+}

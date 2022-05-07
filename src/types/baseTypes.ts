@@ -1,3 +1,13 @@
+export interface ContentIndicesByDirection {
+  contentRowIndices: ContentIndices;
+  contentColumnIndices: ContentIndices;
+}
+
+export interface ContentIndices {
+  startIndices: number[];
+  endIndices: number[];
+}
+
 export interface TwordleConfiguration {
   PORT: number;
 }
