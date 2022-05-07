@@ -1,3 +1,5 @@
+export type point = [number, number];
+
 export interface ContentIndicesByDirection {
   contentRowIndices: ContentIndices;
   contentColumnIndices: ContentIndices;
