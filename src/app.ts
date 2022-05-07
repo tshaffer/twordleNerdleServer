@@ -11,7 +11,6 @@ const bodyParser = require('body-parser');
 import { Routes } from './routes/routes';
 
 import {
-  getGuesses,
   getTest,
   postTest,
   getVersion,
@@ -42,7 +41,6 @@ class App {
     this.app.get('/api/v1/version', getVersion);
 
     this.app.post('/api/v1/upload', uploadFile);
-    this.app.post('/api/v1/getGuesses', getGuesses);
     this.app.post('/api/v1/getWords', getWords);
 
     this.app.get('/api/v1/test', getTest);

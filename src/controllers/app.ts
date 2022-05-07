@@ -11,7 +11,7 @@ let spellchecker: { parse: (arg0: { aff: Buffer; dic: Buffer; }) => any; use: (a
 import * as vision from '@google-cloud/vision';
 import { PNGWithMetadata } from 'pngjs';
 import { ContentIndices, ContentIndicesByDirection, LetterAnswerType, point } from '../types';
-import { base64ToImg, rectanglesOverlap, isColorGreenish, isColorGoldish, isColorGrayish } from '../utilities';
+import { rectanglesOverlap, isColorGreenish, isColorGoldish, isColorGrayish } from '../utilities';
 
 const PNG = require('pngjs').PNG;
 
@@ -53,24 +53,6 @@ export const getVersion = (request: Request, response: Response, next: any) => {
   };
   response.json(data);
 };
-
-export const getGuesses = (request: Request, response: Response, next: any) => {
-
-  console.log('getGuesses');
-
-  const { imageDataBase64 } = request.body;
-
-  base64ToImg(imageDataBase64).then((filePath: string) => {
-
-    textFromImage(filePath).then((data) => {
-      console.log('send response');
-      console.log(data);
-
-      response.json(data);
-    });
-  });
-
-}
 
 async function textFromImage(fileName: string) {
 
@@ -283,7 +265,34 @@ async function textFromImage(fileName: string) {
 
 }
 
+// async function testOCR() {
+
+//   const client = new vision.ImageAnnotatorClient();
+
+//   const [resultA]: vision.protos.google.cloud.vision.v1.IAnnotateImageResponse[] = await client.documentTextDetection('letterA.png');
+//   const fullTextAnnotationA: vision.protos.google.cloud.vision.v1.ITextAnnotation = resultA.fullTextAnnotation;
+
+//   const [resultR]: vision.protos.google.cloud.vision.v1.IAnnotateImageResponse[] = await client.documentTextDetection('letterR.png');
+//   const fullTextAnnotationR: vision.protos.google.cloud.vision.v1.ITextAnnotation = resultR.fullTextAnnotation;
+
+//   const [resultI]: vision.protos.google.cloud.vision.v1.IAnnotateImageResponse[] = await client.documentTextDetection('letterI.png');
+//   const fullTextAnnotationI: vision.protos.google.cloud.vision.v1.ITextAnnotation = resultI.fullTextAnnotation;
+
+//   console.log('fullTextAnnotations');
+//   console.log(fullTextAnnotationA);
+//   console.log(fullTextAnnotationR);
+//   console.log(fullTextAnnotationI);
+
+//   return Promise.resolve(true);
+// }
+
 export const uploadFile = (request: Request, response: Response, next: any) => {
+
+  // testOCR().then(() => {
+  //   return response.status(200).send({});
+  // });
+
+
   const storage = multer.diskStorage({
     destination: function (req, file, cb) {
       cb(null, 'public');
