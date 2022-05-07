@@ -903,10 +903,16 @@ export const getWords = (request: Request, response: Response, next: any) => {
   const contentIndices: ContentIndicesByDirection = analyzeImageFile(pathOnServer);
   console.log('contentIndices', contentIndices);
 
-  getLetterTypes(png.data, png.width, png.height, contentIndices);
+  const letterAnswerTypes = getLetterTypes(guesses, png.data, png.width, contentIndices);
+
+  convertBackgroundColorsToBlack(png.data);
+
+  const words = getWordsPrep(letterAnswerTypes);
+  console.log('getWordsPrep - words = ', words);
 
   response.status(200).json({
     success: true,
+    words,
   });
 
 }
@@ -1012,17 +1018,50 @@ const getContentColumnIndices = (whiteColumns: number[]): ContentIndices => {
   };
 }
 
-const getLetterTypes = (imageData: Buffer, imageWidth: number, imageHeight: number, contentIndicesByDirection: ContentIndicesByDirection) => {
+const getLetterTypes = (guesses: string[], imageData: Buffer, imageWidth: number, contentIndicesByDirection: ContentIndicesByDirection) => {
+
+  let lettersNotInWord: string = '';
+  const letterAnswerValues: LetterAnswerType[][] = [];
+  const lettersAtExactLocation: string[] = ['', '', '', '', ''];
+  const lettersNotAtExactLocation: string[] = ['', '', '', '', ''];
 
   const numRows = contentIndicesByDirection.contentRowIndices.startIndices.length;
   const numColumns = contentIndicesByDirection.contentColumnIndices.startIndices.length;
 
   for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
+    letterAnswerValues.push([]);
+    const letterAnswersInRow = letterAnswerValues[rowIndex];
     for (let columnIndex = 0; columnIndex < numColumns; columnIndex++) {
       const letterAnswerType: LetterAnswerType = getLetterAnswer(imageData, imageWidth, contentIndicesByDirection, rowIndex, columnIndex);
       console.log(rowIndex, columnIndex, letterAnswerType);
+
+      letterAnswersInRow.push(letterAnswerType);
+
+      const currentCharacter: string = guesses[rowIndex].charAt(columnIndex);
+
+      console.log(rowIndex, columnIndex, currentCharacter, letterAnswerType);
+
+      switch (letterAnswerType) {
+        case LetterAnswerType.InWordAtExactLocation:
+          lettersAtExactLocation[columnIndex] = currentCharacter;
+          break;
+        case LetterAnswerType.InWordAtNonLocation:
+          lettersNotAtExactLocation[columnIndex] = lettersNotAtExactLocation[columnIndex] + currentCharacter;
+          break;
+        case LetterAnswerType.NotInWord:
+        default:
+          lettersNotInWord = lettersNotInWord + currentCharacter;
+          break;
+      }
     }
   }
+
+  return {
+    lettersAtExactLocation,
+    lettersNotAtExactLocation,
+    lettersNotInWord,
+  };
+
 }
 
 const getLetterAnswer = (imageData: Buffer, imageWidth: number, contentIndicesByDirection: ContentIndicesByDirection, rowIndex: number, columnIndex: number): LetterAnswerType => {
