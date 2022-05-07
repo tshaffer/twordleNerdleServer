@@ -447,8 +447,6 @@ const convertBackgroundColorsToBlack = (imgData: Buffer) => {
       imgData[i] = 0;
       imgData[i + 1] = 0;
       imgData[i + 2] = 0;
-    } else {
-      const lat = letterAnswerType;
     }
   }
 };
@@ -513,8 +511,6 @@ export const getWords = (request: Request, response: Response, next: any) => {
   console.log('contentIndices', contentIndices);
 
   const letterAnswerTypes = getLetterTypes(guesses, png.data, png.width, contentIndices);
-
-  convertBackgroundColorsToBlack(png.data);
 
   const words = getWordsPrep(letterAnswerTypes);
   console.log('getWordsPrep - words = ', words);
