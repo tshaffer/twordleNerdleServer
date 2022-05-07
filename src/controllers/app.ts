@@ -622,22 +622,21 @@ export const uploadFile = (request: Request, response: Response, next: any) => {
     }
     console.log('return from upload: ', request.file);
 
-    analyzeImageFile(request.file.path).then(() => {
-      const responseData = {
-        file: request.file,
-      };
-      return response.status(200).send(responseData);
-    })
-
-    // pngTest(request.file.path).then((guessesObj: any) => {
-    //   // return response.status(200).send(request.file);
-    //   console.log('return from pngTest: ', guessesObj);
+    // analyzeImageFile(request.file.path).then(() => {
     //   const responseData = {
-    //     guesses: guessesObj,
     //     file: request.file,
     //   };
     //   return response.status(200).send(responseData);
-    // });
+    // })
+
+    getTextUsingOCR(request.file.path).then((guessesObj: any) => {
+      console.log('return from pngTest: ', guessesObj);
+      const responseData = {
+        guesses: guessesObj,
+        file: request.file,
+      };
+      return response.status(200).send(responseData);
+    });
   });
 };
 
@@ -662,7 +661,7 @@ const analyzeImageFile = (path: string): Promise<any> => {
 
   const contentRowIndices = getContentRowIndices(whiteRows);
   console.log('contentRowIndices: ', contentRowIndices);
-  
+
   return Promise.resolve(true);
 }
 
@@ -695,39 +694,11 @@ const getContentRowIndices = (whiteRows: number[]): any => {
     contentRowStartIndices,
     contentRowEndIndices,
   };
-  // console.log('rowDividerIndices: ', rowDividerIndices);
-
-  // // optimistic case - rowDividerIndices.length === 2
-  // console.log('**** rowDividerIndices.length: ', rowDividerIndices.length);
-
-  // const rowContentIndices: number[] = [];
-
-  // // I assert that contentHeight = 136
-  // // content
-  // //    4 to 140 => 137
-  // //    153 to 288 => 136
-  // //    301 to 437 => 137
-  // //  verified by measurement
-  // const contentHeight = whiteRows[rowDividerIndices[1]] - whiteRows[rowDividerIndices[0]];
-
-  // let index = 0;
-  // while (index < rowDividerIndices.length) {
-  //   const rowDividerIndex = rowDividerIndices[index];
-  //   const whiteRowIndex = whiteRows[rowDividerIndex];
-  //   const contentRowIndex = (whiteRowIndex + dividerSize) - contentHeight;
-  //   rowContentIndices.push(contentRowIndex);
-  //   index++;
-  // }
-
-  // console.log('rowContentIndices: ', rowContentIndices);
-
-  // return rowContentIndices;
 }
 
-const pngTest = (path: string): Promise<any> => {
+const getTextUsingOCR = (path: string): Promise<any> => {
 
   var data = fs.readFileSync(path);
-  // var png: PNGWithMetadata = PNG.sync.read(data);
   const png: PNGWithMetadata = PNG.sync.read(data, {
     filterType: -1,
   });
@@ -735,7 +706,7 @@ const pngTest = (path: string): Promise<any> => {
   console.log(png.width);
   console.log(png.height);
 
-  getGuessesFromUploadedFile(png.width, png.height, png.data);
+  prepareImageForOCR(png.width, png.height, png.data);
 
   const buffer = PNG.sync.write(png);
   fs.writeFileSync('out-2.png', buffer);
@@ -749,7 +720,7 @@ const pngTest = (path: string): Promise<any> => {
 
 }
 
-const getGuessesFromUploadedFile = (imageWidth: number, imageHeight: number, data: Buffer) => {
+const prepareImageForOCR = (imageWidth: number, imageHeight: number, data: Buffer) => {
 
   // each value in data is a number <= 255
   const whiteAtImageDataRGBIndex: boolean[] = buildWhiteAtImageDataRGBIndex(data as unknown as Uint8ClampedArray);
@@ -758,10 +729,6 @@ const getGuessesFromUploadedFile = (imageWidth: number, imageHeight: number, dat
   convertWhiteRowsToBlack(imageWidth, whiteRows, data as unknown as Uint8ClampedArray);
   convertWhiteColumnsToBlack(imageWidth, imageHeight, whiteColumns, data as unknown as Uint8ClampedArray);
   convertBackgroundColorsToBlack(data);
-  const newWhiteRows: number[] = getWhiteRows(imageWidth, whiteAtImageDataRGBIndex);
-  const newWhiteColumns: number[] = getWhiteColumns(imageWidth, imageHeight, whiteAtImageDataRGBIndex);
-  console.log(newWhiteRows);
-  console.log(newWhiteColumns);
 }
 
 export const buildWhiteAtImageDataRGBIndex = (imageDataRGB: Uint8ClampedArray): boolean[] => {
