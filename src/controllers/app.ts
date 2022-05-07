@@ -108,17 +108,14 @@ async function textFromImage(fileName: string) {
     imageHeight = page.height;
 
     const blocks: vision.protos.google.cloud.vision.v1.IBlock[] = page.blocks;
-    // numberOfRows = blocks.length;
-    // rowHeight = Math.trunc(imageHeight / numberOfRows);
     if (blocks.length > 1) {
       console.log('****** Number of blocks = ', blocks.length, ' ******');
     }
-    // blocks.forEach((block: vision.protos.google.cloud.vision.v1.IBlock, rowIndex) => {
-    blocks.forEach((block: vision.protos.google.cloud.vision.v1.IBlock) => {
+    numberOfRows = blocks.length;
+    rowHeight = Math.trunc(imageHeight / numberOfRows);
+    blocks.forEach((block: vision.protos.google.cloud.vision.v1.IBlock, rowIndex) => {
       const paragraphs: vision.protos.google.cloud.vision.v1.IParagraph[] = block.paragraphs;
-      numberOfRows = paragraphs.length;
-      rowHeight = Math.trunc(imageHeight / numberOfRows);
-      paragraphs.forEach((paragraph, rowIndex) => {
+      paragraphs.forEach((paragraph) => {
         const words: vision.protos.google.cloud.vision.v1.IWord[] = paragraph.words;
         words.forEach(word => {
           const symbols: vision.protos.google.cloud.vision.v1.ISymbol[] = word.symbols;
@@ -129,6 +126,21 @@ async function textFromImage(fileName: string) {
         });
       });
     });
+    // blocks.forEach((block: vision.protos.google.cloud.vision.v1.IBlock) => {
+    //   const paragraphs: vision.protos.google.cloud.vision.v1.IParagraph[] = block.paragraphs;
+    //   numberOfRows = paragraphs.length;
+    //   rowHeight = Math.trunc(imageHeight / numberOfRows);
+    //   paragraphs.forEach((paragraph, rowIndex) => {
+    //     const words: vision.protos.google.cloud.vision.v1.IWord[] = paragraph.words;
+    //     words.forEach(word => {
+    //       const symbols: vision.protos.google.cloud.vision.v1.ISymbol[] = word.symbols;
+    //       symbols.forEach((symbol: vision.protos.google.cloud.vision.v1.ISymbol) => {
+    //         (symbol as TwordleSymbol).rowIndex = rowIndex;
+    //         baseSymbols.push(symbol);
+    //       });
+    //     });
+    //   });
+    // });
   });
 
   const rectangleOverlaps: boolean[] = [];
@@ -350,7 +362,7 @@ export const getWords = (request: Request, response: Response, next: any) => {
   */
   const letterAnswerTypes = getLetterAnswerTypes(png.data, guesses, numRows, numColumns, pixelsPerRow, pixelsPerColumn);
 
-  // convertBackgroundColorsToBlack(png.data);
+  convertBackgroundColorsToBlack(png.data);
 
   const words = getWordsPrep(letterAnswerTypes);
   console.log('getWordsPrep - words = ', words);
@@ -477,7 +489,7 @@ const getWordsPrep = (letterAnswerTypes: any) => {
 
 const getLetterAnswerTypes = (buffer: Buffer, guesses: string[], numRows: number, numColumns: number, pixelsPerColumn: number, pixelsPerRow: number): any => {
 
-  const imageWidth = 728;
+  const imageWidth = 732;
 
   const pixelOffsetFromLeft = Math.trunc(pixelsPerColumn / 4);
   const pixelOffsetFromTop = Math.trunc(pixelsPerRow / 4);
@@ -514,7 +526,7 @@ const getLetterAnswerTypes = (buffer: Buffer, guesses: string[], numRows: number
       const currentCharacter: string = guesses[rowIndex].charAt(columnIndex);
 
       console.log(rowIndex, columnIndex, currentCharacter, letterAnswerType);
-      
+
       switch (letterAnswerType) {
         case LetterAnswerType.InWordAtExactLocation:
           lettersAtExactLocation[columnIndex] = currentCharacter;
@@ -609,17 +621,108 @@ export const uploadFile = (request: Request, response: Response, next: any) => {
       return response.status(500).json(err);
     }
     console.log('return from upload: ', request.file);
-    pngTest(request.file.path).then((guessesObj: any) => {
-      // return response.status(200).send(request.file);
-      console.log('return from pngTest: ', guessesObj);
+
+    analyzeImageFile(request.file.path).then(() => {
       const responseData = {
-        guesses: guessesObj,
         file: request.file,
       };
       return response.status(200).send(responseData);
-    });
+    })
+
+    // pngTest(request.file.path).then((guessesObj: any) => {
+    //   // return response.status(200).send(request.file);
+    //   console.log('return from pngTest: ', guessesObj);
+    //   const responseData = {
+    //     guesses: guessesObj,
+    //     file: request.file,
+    //   };
+    //   return response.status(200).send(responseData);
+    // });
   });
 };
+
+const analyzeImageFile = (path: string): Promise<any> => {
+  var data: Buffer = fs.readFileSync(path);
+  const png: PNGWithMetadata = PNG.sync.read(data, {
+    filterType: -1,
+  });
+  console.log('png parsed');
+  console.log(png.width);
+  console.log(png.height);
+
+  const imageWidth = png.width;
+  const imageHeight = png.height;
+
+  const whiteAtImageDataRGBIndex: boolean[] = buildWhiteAtImageDataRGBIndex(png.data as unknown as Uint8ClampedArray);
+  const whiteRows: number[] = getWhiteRows(imageWidth, whiteAtImageDataRGBIndex);
+  const whiteColumns: number[] = getWhiteColumns(imageWidth, imageHeight, whiteAtImageDataRGBIndex);
+
+  console.log('whiteRows: ', whiteRows);
+  console.log('whiteColumns: ', whiteColumns);
+
+  const contentRowIndices = getContentRowIndices(whiteRows);
+  console.log('contentRowIndices: ', contentRowIndices);
+  
+  return Promise.resolve(true);
+}
+
+const getContentRowIndices = (whiteRows: number[]): any => {
+
+  const dividerSize = 12;
+
+  const rowDividerIndices: number[] = [];
+  const contentRowStartIndices: number[] = [];
+  const contentRowEndIndices: number[] = [];
+
+  let whiteRowIndex = 1;
+  let indexOfStartOfWhiteRows = 0;
+  while (whiteRowIndex < whiteRows.length) {
+    if (whiteRows[whiteRowIndex - 1] === (whiteRows[whiteRowIndex] - 1)) {
+      if ((whiteRowIndex - indexOfStartOfWhiteRows + 1) === dividerSize) {
+        rowDividerIndices.push(indexOfStartOfWhiteRows);
+      }
+    } else {
+      indexOfStartOfWhiteRows = whiteRowIndex;
+      const rowIndexOfStartOfContent = whiteRows[whiteRowIndex - 1] + 1;
+      contentRowStartIndices.push(rowIndexOfStartOfContent);
+      const rowIndexOfEndOfContent = whiteRows[whiteRowIndex] - 1;
+      contentRowEndIndices.push(rowIndexOfEndOfContent);
+    }
+    whiteRowIndex++;
+  }
+
+  return {
+    contentRowStartIndices,
+    contentRowEndIndices,
+  };
+  // console.log('rowDividerIndices: ', rowDividerIndices);
+
+  // // optimistic case - rowDividerIndices.length === 2
+  // console.log('**** rowDividerIndices.length: ', rowDividerIndices.length);
+
+  // const rowContentIndices: number[] = [];
+
+  // // I assert that contentHeight = 136
+  // // content
+  // //    4 to 140 => 137
+  // //    153 to 288 => 136
+  // //    301 to 437 => 137
+  // //  verified by measurement
+  // const contentHeight = whiteRows[rowDividerIndices[1]] - whiteRows[rowDividerIndices[0]];
+
+  // let index = 0;
+  // while (index < rowDividerIndices.length) {
+  //   const rowDividerIndex = rowDividerIndices[index];
+  //   const whiteRowIndex = whiteRows[rowDividerIndex];
+  //   const contentRowIndex = (whiteRowIndex + dividerSize) - contentHeight;
+  //   rowContentIndices.push(contentRowIndex);
+  //   index++;
+  // }
+
+  // console.log('rowContentIndices: ', rowContentIndices);
+
+  // return rowContentIndices;
+}
 
 const pngTest = (path: string): Promise<any> => {
 
@@ -655,6 +758,10 @@ const getGuessesFromUploadedFile = (imageWidth: number, imageHeight: number, dat
   convertWhiteRowsToBlack(imageWidth, whiteRows, data as unknown as Uint8ClampedArray);
   convertWhiteColumnsToBlack(imageWidth, imageHeight, whiteColumns, data as unknown as Uint8ClampedArray);
   convertBackgroundColorsToBlack(data);
+  const newWhiteRows: number[] = getWhiteRows(imageWidth, whiteAtImageDataRGBIndex);
+  const newWhiteColumns: number[] = getWhiteColumns(imageWidth, imageHeight, whiteAtImageDataRGBIndex);
+  console.log(newWhiteRows);
+  console.log(newWhiteColumns);
 }
 
 export const buildWhiteAtImageDataRGBIndex = (imageDataRGB: Uint8ClampedArray): boolean[] => {
@@ -759,6 +866,8 @@ export const convertBackgroundColorsToBlack = (imgData: Buffer) => {
       imgData[i] = 0;
       imgData[i + 1] = 0;
       imgData[i + 2] = 0;
+    } else {
+      const lat = letterAnswerType;
     }
   }
 };
@@ -835,14 +944,42 @@ const colorMatch = (actualColor: number, targetColor: number): boolean => {
 };
 
 const isLetterAtExactLocation = (red: any, green: any, blue: any): boolean => {
-  return (colorMatch(red, InWordAtExactLocationValue.red) && colorMatch(green, InWordAtExactLocationValue.green) && colorMatch(blue, InWordAtExactLocationValue.blue));
+  return isColorGreenish(red, green, blue);
+  // return (colorMatch(red, InWordAtExactLocationValue.red) && colorMatch(green, InWordAtExactLocationValue.green) && colorMatch(blue, InWordAtExactLocationValue.blue));
 };
 
 const isLetterNotAtExactLocation = (red: any, green: any, blue: any): boolean => {
-  return (colorMatch(red, InWordAtNonLocationValue.red) && colorMatch(green, InWordAtNonLocationValue.green) && colorMatch(blue, InWordAtNonLocationValue.blue));
+  return isColorGoldish(red, green, blue);
+  // return (colorMatch(red, InWordAtNonLocationValue.red) && colorMatch(green, InWordAtNonLocationValue.green) && colorMatch(blue, InWordAtNonLocationValue.blue));
 };
 
 const isLetterNotInWord = (red: any, green: any, blue: any): boolean => {
-  return (colorMatch(red, NotInWordValue.red) && colorMatch(green, NotInWordValue.green) && colorMatch(blue, NotInWordValue.blue));
+  return isColorGrayish(red, green, blue);
+  // return (colorMatch(red, NotInWordValue.red) && colorMatch(green, NotInWordValue.green) && colorMatch(blue, NotInWordValue.blue));
 };
 
+const minimumGreenDeltaForExactMatch = 35;   // not scientific.
+const minimumRedDeltaForNotAtExactLocationMatch = 12;
+const minimumGreenDeltaForNotAtExactLocationMatch = 50;
+const minimumColorDeltaForNotInWordMatch = 10;
+
+const isColorGreenish = (red: any, green: any, blue: any): boolean => {
+  return ((green - red) > minimumGreenDeltaForExactMatch) && ((green - blue) > minimumGreenDeltaForExactMatch);
+}
+
+const isColorGoldish = (red: any, green: any, blue: any): boolean => {
+  return ((red - green) > minimumRedDeltaForNotAtExactLocationMatch) && ((green - blue) > minimumGreenDeltaForNotAtExactLocationMatch);
+}
+
+const isColorGrayish = (red: any, green: any, blue: any): boolean => {
+  if (isColorWhite(red, green, blue)) return false;
+  return (
+    (Math.abs(red - green) < minimumColorDeltaForNotInWordMatch)
+    && (Math.abs(red - blue) < minimumColorDeltaForNotInWordMatch)
+    && (Math.abs(green - blue) < minimumColorDeltaForNotInWordMatch)
+  );
+}
+
+const isColorWhite = (red: any, green: any, blue: any): boolean => {
+  return (red = 255 && green === 255 && blue === 255);
+}
