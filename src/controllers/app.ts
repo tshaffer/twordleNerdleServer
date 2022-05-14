@@ -11,7 +11,7 @@ let spellchecker: { parse: (arg0: { aff: Buffer; dic: Buffer; }) => any; use: (a
 import * as vision from '@google-cloud/vision';
 import { PNGWithMetadata } from 'pngjs';
 import { ContentIndices, ContentIndicesByDirection, LetterAnswerType, point } from '../types';
-import { rectanglesOverlap, isColorGreenish, isColorGoldish, isColorGrayish } from '../utilities';
+import { rectanglesOverlap, isColorGreenish, isColorGoldish, isColorGrayish, isColorWhitish } from '../utilities';
 
 const PNG = require('pngjs').PNG;
 
@@ -356,15 +356,13 @@ const prepareImageForOCR = (imageWidth: number, imageHeight: number, data: Buffe
 
 const buildWhiteAtImageDataRGBIndex = (imageDataRGB: Uint8ClampedArray): boolean[] => {
 
-  const whiteValue = 255;
-
   const whiteAtImageDataRGBIndex: boolean[] = [];
 
   for (let imageDataIndex = 0; imageDataIndex < imageDataRGB.length; imageDataIndex += 4) {
     const red = imageDataRGB[imageDataIndex];
     const green = imageDataRGB[imageDataIndex + 1];
     const blue = imageDataRGB[imageDataIndex + 2];
-    if (red === whiteValue && green == whiteValue && blue === whiteValue) {
+    if (isColorWhitish(red, green, blue)) {
       whiteAtImageDataRGBIndex.push(true);
     } else {
       whiteAtImageDataRGBIndex.push(false);

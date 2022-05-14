@@ -1,8 +1,9 @@
 import { point } from '../types';
 
-const minimumGreenDeltaForExactMatch = 35;   // not scientific.
-const minimumRedDeltaForNotAtExactLocationMatch = 12;
-const minimumGreenDeltaForNotAtExactLocationMatch = 50;
+const minimumWhitish = 200;
+const minimumGreenDeltaForExactMatch = 24;   // not scientific.
+const minimumRedDeltaForNotAtExactLocationMatch = 7;
+const minimumGreenDeltaForNotAtExactLocationMatch = 40;
 const minimumColorDeltaForNotInWordMatch = 10;
 
 export function rectanglesOverlap(topLeft1: point, bottomRight1: point, topLeft2: point, bottomRight2: point) {
@@ -24,7 +25,7 @@ export const isColorGoldish = (red: any, green: any, blue: any): boolean => {
 }
 
 export const isColorGrayish = (red: any, green: any, blue: any): boolean => {
-  if (isColorWhite(red, green, blue)) return false;
+  if (isColorWhitish(red, green, blue)) return false;
   return (
     (Math.abs(red - green) < minimumColorDeltaForNotInWordMatch)
     && (Math.abs(red - blue) < minimumColorDeltaForNotInWordMatch)
@@ -32,7 +33,10 @@ export const isColorGrayish = (red: any, green: any, blue: any): boolean => {
   );
 }
 
-export const isColorWhite = (red: any, green: any, blue: any): boolean => {
-  return (red = 255 && green === 255 && blue === 255);
+
+export const isColorWhitish = (red: any, green: any, blue: any): boolean => {
+  return (
+    red >= minimumWhitish && green >= minimumWhitish && blue >= minimumWhitish
+  );
 }
 
