@@ -425,23 +425,40 @@ const processRowsOfWhiteRuns = (rowsOfWhiteRuns: WhiteRunsInRow[]) => {
       // const whiteRunsInThisRow: WhiteRunsInRow = rowsOfWhiteRun;
 
       // typical: 1st to big rectangle; 4 inter little rectangle runs.
+      // however, if the user has entered a character in the little rectangle, there may be other little rectangle runs
       //    length = 5
       //    last index = 4
 
       // check for instance of 4 consecutive whiteRuns that have 'equivalent' length.
-      for (let whiteRunIndex = 0; whiteRunIndex <= whiteRunsInThisRow.whiteRuns.length - 4; whiteRunIndex++) {
-        if ((whiteRunsInThisRow.whiteRuns[whiteRunIndex + 0].runLength === whiteRunsInThisRow.whiteRuns[whiteRunIndex + 1].runLength) &&
-            (whiteRunsInThisRow.whiteRuns[whiteRunIndex + 1].runLength === whiteRunsInThisRow.whiteRuns[whiteRunIndex + 3].runLength) &&
-            (whiteRunsInThisRow.whiteRuns[whiteRunIndex + 2].runLength === whiteRunsInThisRow.whiteRuns[whiteRunIndex + 3].runLength)) {
-              rowsOfWhiteRunsFilter0.push(whiteRunsInThisRow);
+      // for (let whiteRunIndex = 0; whiteRunIndex <= whiteRunsInThisRow.whiteRuns.length - 4; whiteRunIndex++) {
+      //   if ((whiteRunsInThisRow.whiteRuns[whiteRunIndex + 0].runLength === whiteRunsInThisRow.whiteRuns[whiteRunIndex + 1].runLength) &&
+      //       (whiteRunsInThisRow.whiteRuns[whiteRunIndex + 1].runLength === whiteRunsInThisRow.whiteRuns[whiteRunIndex + 3].runLength) &&
+      //       (whiteRunsInThisRow.whiteRuns[whiteRunIndex + 2].runLength === whiteRunsInThisRow.whiteRuns[whiteRunIndex + 3].runLength)) {
+      //         rowsOfWhiteRunsFilter0.push(whiteRunsInThisRow);
+      //       }
+      // }
+
+      // check for instance of 4 whiteRuns that have 'equivalent' length
+      for (let whiteRunIndex = 0; whiteRunIndex < whiteRunsInThisRow.whiteRuns.length; whiteRunIndex++) {
+        const runLengthAtThisIndex: number = whiteRunsInThisRow.whiteRuns[whiteRunIndex].runLength;
+        let numIndicesWithThisLength = 1;
+        for (let otherIndex = 0; otherIndex < whiteRunsInThisRow.whiteRuns.length; otherIndex++) {
+          if (otherIndex !== whiteRunIndex) {
+            if (runLengthAtThisIndex === whiteRunsInThisRow.whiteRuns[otherIndex].runLength) {
+              numIndicesWithThisLength++;
+              if (numIndicesWithThisLength === 4) {
+                rowsOfWhiteRunsFilter0.push(whiteRunsInThisRow);
+              }
             }
+          }
+        }
       }
-      // rowsOfWhiteRunsFilter0.push(whiteRunsInThisRow);
     }
   }
 
   console.log(rowsOfWhiteRunsFilter0);
 }
+
 const old_fullScreenTests = (imageWidth: number, imageHeight: number, data: Buffer) => {
 
   const whiteRunsByLength: any = {}
