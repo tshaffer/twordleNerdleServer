@@ -1,6 +1,7 @@
 import { point } from '../types';
 
-const minimumWhitish = 200;
+// const minimumWhitish = 200;
+const minimumWhitish = 240;
 const minimumGreenDeltaForExactMatch = 24;   // not scientific.
 const minimumRedDeltaForNotAtExactLocationMatch = 7;
 const minimumGreenDeltaForNotAtExactLocationMatch = 40;

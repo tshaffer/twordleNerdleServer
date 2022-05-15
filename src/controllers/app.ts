@@ -331,18 +331,170 @@ const getTextUsingOCR = (path: string): Promise<any> => {
   console.log(png.width);
   console.log(png.height);
 
-  prepareImageForOCR(png.width, png.height, png.data);
+  fullScreenTests(png.width, png.height, png.data);
 
-  const buffer = PNG.sync.write(png);
-  fs.writeFileSync('out-2.png', buffer);
+  const retData: any = {
+    guesses: [],
+  };
 
-  return textFromImage('out-2.png').then((data) => {
-    console.log('data from textFromImage using out-2.png');
-    console.log(data);
+  return Promise.resolve(retData);
 
-    return data;
-  });
+  // prepareImageForOCR(png.width, png.height, png.data);
 
+  // const buffer = PNG.sync.write(png);
+  // fs.writeFileSync('out-2.png', buffer);
+
+  // return textFromImage('out-2.png').then((data) => {
+  //   console.log('data from textFromImage using out-2.png');
+  //   console.log(data);
+
+  //   return data;
+  // });
+
+}
+
+interface WhiteRun {
+  rowIndex: number;
+  startColumn: number;
+  runLength: number;
+}
+
+interface WhiteRunsInRow {
+  whiteRuns: WhiteRun[];
+}
+
+const fullScreenTests = (imageWidth: number, imageHeight: number, data: Buffer) => {
+
+  const rowsOfWhiteRuns: WhiteRunsInRow[] = [];
+
+  const whiteAtImageDataRGBIndex: boolean[] = buildWhiteAtImageDataRGBIndex(data as unknown as Uint8ClampedArray);
+
+  let inWhiteRun: boolean = false;
+  let whiteRunLength: number = 0;
+  let rowIndexOfWhiteRun = 0;
+  let columnIndexOfWhiteRunStart = 0;
+
+  for (let rowIndex = 0; rowIndex < imageWidth; rowIndex++) {
+
+    // don't care about trailing white run in prior row
+
+    inWhiteRun = false;
+
+    const currentWhiteRunsInRow: WhiteRunsInRow = { whiteRuns: [] };
+    rowsOfWhiteRuns.push(currentWhiteRunsInRow);
+
+    for (let columnIndex = 0; columnIndex < imageWidth; columnIndex++) {
+      const indexIntoWhiteAtImageDataRGBIndex = (rowIndex * imageWidth) + columnIndex;
+      if (!whiteAtImageDataRGBIndex[indexIntoWhiteAtImageDataRGBIndex]) {
+        if (inWhiteRun) {
+          const completedWhiteRun: WhiteRun = {
+            rowIndex,
+            startColumn: columnIndexOfWhiteRunStart,
+            runLength: whiteRunLength,
+          };
+          currentWhiteRunsInRow.whiteRuns.push(completedWhiteRun);
+          inWhiteRun = false;
+        }
+      } else {
+        if (!inWhiteRun) {
+          inWhiteRun = true;
+          whiteRunLength = 1;
+          rowIndexOfWhiteRun = rowIndex;
+          columnIndexOfWhiteRunStart = columnIndex;
+        } else {
+          whiteRunLength++;
+        }
+
+      }
+    }
+  }
+
+  // console.log(rowsOfWhiteRuns);
+
+  processRowsOfWhiteRuns(rowsOfWhiteRuns);
+
+}
+
+const processRowsOfWhiteRuns = (rowsOfWhiteRuns: WhiteRunsInRow[]) => {
+
+  const rowsOfWhiteRunsFilter0: WhiteRunsInRow[] = [];
+
+  for (const whiteRunsInThisRow of rowsOfWhiteRuns) {
+    if (whiteRunsInThisRow.whiteRuns.length >= 6) {
+
+      // const whiteRunsInThisRow: WhiteRunsInRow = rowsOfWhiteRun;
+
+      // typical: 1st to big rectangle; 4 inter little rectangle runs.
+      //    length = 5
+      //    last index = 4
+
+      // check for instance of 4 consecutive whiteRuns that have 'equivalent' length.
+      for (let whiteRunIndex = 0; whiteRunIndex <= whiteRunsInThisRow.whiteRuns.length - 4; whiteRunIndex++) {
+        if ((whiteRunsInThisRow.whiteRuns[whiteRunIndex + 0].runLength === whiteRunsInThisRow.whiteRuns[whiteRunIndex + 1].runLength) &&
+            (whiteRunsInThisRow.whiteRuns[whiteRunIndex + 1].runLength === whiteRunsInThisRow.whiteRuns[whiteRunIndex + 3].runLength) &&
+            (whiteRunsInThisRow.whiteRuns[whiteRunIndex + 2].runLength === whiteRunsInThisRow.whiteRuns[whiteRunIndex + 3].runLength)) {
+              rowsOfWhiteRunsFilter0.push(whiteRunsInThisRow);
+            }
+      }
+      // rowsOfWhiteRunsFilter0.push(whiteRunsInThisRow);
+    }
+  }
+
+  console.log(rowsOfWhiteRunsFilter0);
+}
+const old_fullScreenTests = (imageWidth: number, imageHeight: number, data: Buffer) => {
+
+  const whiteRunsByLength: any = {}
+
+  const whiteAtImageDataRGBIndex: boolean[] = buildWhiteAtImageDataRGBIndex(data as unknown as Uint8ClampedArray);
+
+  let inWhiteRun: boolean = false;
+  let whiteRunLength: number = 0;
+  let rowIndexOfWhiteRun = 0;
+  let columnIndexOfWhiteRunStart = 0;
+
+  for (let rowIndex = 0; rowIndex < imageWidth; rowIndex++) {
+    // don't care about trailing white run
+    inWhiteRun = false;
+    // if (inWhiteRun) {
+    //   if (!whiteRunsByLength.hasOwnProperty(whiteRunLength.toString())) {
+    //     whiteRunsByLength[whiteRunLength.toString()] = [];
+    //   }
+    //   whiteRunsByLength[whiteRunLength.toString()].push({
+    //     rowIndexOfWhiteRun,
+    //     columnIndexOfWhiteRunStart,
+    //   });
+    //   inWhiteRun = false;
+    // }
+    for (let columnIndex = 0; columnIndex < imageWidth; columnIndex++) {
+      const indexIntoWhiteAtImageDataRGBIndex = (rowIndex * imageWidth) + columnIndex;
+      if (!whiteAtImageDataRGBIndex[indexIntoWhiteAtImageDataRGBIndex]) {
+        if (inWhiteRun) {
+          if (!whiteRunsByLength.hasOwnProperty(whiteRunLength.toString())) {
+            whiteRunsByLength[whiteRunLength.toString()] = [];
+          }
+          whiteRunsByLength[whiteRunLength.toString()].push({
+            rowIndexOfWhiteRun,
+            columnIndexOfWhiteRunStart,
+          });
+          inWhiteRun = false;
+        }
+      } else {
+        if (!inWhiteRun) {
+          inWhiteRun = true;
+          whiteRunLength = 1;
+          rowIndexOfWhiteRun = rowIndex;
+          columnIndexOfWhiteRunStart = columnIndex;
+        } else {
+          whiteRunLength++;
+        }
+
+      }
+    }
+  }
+
+  const whiteRows: number[] = getWhiteRows(imageWidth, whiteAtImageDataRGBIndex);
+  console.log(whiteRows);
 }
 
 const prepareImageForOCR = (imageWidth: number, imageHeight: number, data: Buffer) => {
