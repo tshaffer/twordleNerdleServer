@@ -363,6 +363,12 @@ interface WhiteRunsInRow {
   whiteRuns: WhiteRun[];
 }
 
+interface BlockEntry {
+  imageFileRowIndex: number;
+  indexOfBlockStart: number;
+  blockLength: number;
+}
+
 const fullScreenTests = (imageWidth: number, imageHeight: number, data: Buffer) => {
 
   const rowsOfWhiteRuns: WhiteRunsInRow[] = [];
@@ -392,6 +398,7 @@ const fullScreenTests = (imageWidth: number, imageHeight: number, data: Buffer) 
             startColumn: columnIndexOfWhiteRunStart,
             runLength: whiteRunLength,
           };
+
           currentWhiteRunsInRow.whiteRuns.push(completedWhiteRun);
           inWhiteRun = false;
         }
@@ -417,10 +424,12 @@ const fullScreenTests = (imageWidth: number, imageHeight: number, data: Buffer) 
 
 const processRowsOfWhiteRuns = (rowsOfWhiteRuns: WhiteRunsInRow[]) => {
 
-  const rowsOfWhiteRunsFilter0: WhiteRunsInRow[] = [];
+  const rowsWithFourEqualWhiteRunLengths: WhiteRunsInRow[] = [];
 
-  for (const whiteRunsInThisRow of rowsOfWhiteRuns) {
-    if (whiteRunsInThisRow.whiteRuns.length >= 6) {
+  let indexIntoRowsOfWhiteRuns = 0;
+
+  for (const rowOfWhiteRuns of rowsOfWhiteRuns) {
+    if (rowOfWhiteRuns.whiteRuns.length >= 6) {
 
       // const whiteRunsInThisRow: WhiteRunsInRow = rowsOfWhiteRun;
 
@@ -439,24 +448,173 @@ const processRowsOfWhiteRuns = (rowsOfWhiteRuns: WhiteRunsInRow[]) => {
       // }
 
       // check for instance of 4 whiteRuns that have 'equivalent' length
-      for (let whiteRunIndex = 0; whiteRunIndex < whiteRunsInThisRow.whiteRuns.length; whiteRunIndex++) {
-        const runLengthAtThisIndex: number = whiteRunsInThisRow.whiteRuns[whiteRunIndex].runLength;
-        let numIndicesWithThisLength = 1;
-        for (let otherIndex = 0; otherIndex < whiteRunsInThisRow.whiteRuns.length; otherIndex++) {
-          if (otherIndex !== whiteRunIndex) {
-            if (runLengthAtThisIndex === whiteRunsInThisRow.whiteRuns[otherIndex].runLength) {
-              numIndicesWithThisLength++;
-              if (numIndicesWithThisLength === 4) {
-                rowsOfWhiteRunsFilter0.push(whiteRunsInThisRow);
+      // for (let whiteRunIndex = 0; whiteRunIndex < rowOfWhiteRuns.whiteRuns.length; whiteRunIndex++) {
+      //   const runLengthAtThisIndex: number = rowOfWhiteRuns.whiteRuns[whiteRunIndex].runLength;
+      //   let numIndicesWithThisLength = 1;
+      //   for (let otherIndex = 0; otherIndex < rowOfWhiteRuns.whiteRuns.length; otherIndex++) {
+      //     if (otherIndex !== whiteRunIndex) {
+      //       if (runLengthAtThisIndex === rowOfWhiteRuns.whiteRuns[otherIndex].runLength) {
+      //         numIndicesWithThisLength++;
+      //         if (numIndicesWithThisLength === 4) {
+      //           rowsOfWhiteRunsFilter0.push(rowOfWhiteRuns);
+      //           break;
+      //         }
+      //       }
+      //     }
+      //   }
+      // }
+
+      // check for instance(s) of 4 whiteRuns that have 'equivalent' length
+      const countByRunLength: any = {}
+      for (let whiteRunIndex = 0; whiteRunIndex < rowOfWhiteRuns.whiteRuns.length; whiteRunIndex++) {
+        const runLengthAtThisIndex: number = rowOfWhiteRuns.whiteRuns[whiteRunIndex].runLength;
+        if (!countByRunLength.hasOwnProperty(runLengthAtThisIndex.toString())) {
+          countByRunLength[runLengthAtThisIndex] = 0;
+        }
+        countByRunLength[runLengthAtThisIndex]++;
+      }
+
+      for (const key in countByRunLength) {
+        if (Object.prototype.hasOwnProperty.call(countByRunLength, key)) {
+          const runLengthCount = countByRunLength[key];
+          if (runLengthCount >= 4) {
+            // two pushes for one row - does that make sense?
+            const lastIndex = rowsWithFourEqualWhiteRunLengths.length - 1;
+            if (lastIndex > 0) {
+              const lastPushedRowIndex = rowsWithFourEqualWhiteRunLengths[lastIndex].whiteRuns[0].rowIndex;
+              const newRowIndex = rowOfWhiteRuns.whiteRuns[0].rowIndex;
+              if (newRowIndex > lastPushedRowIndex) {
+                rowsWithFourEqualWhiteRunLengths.push(rowOfWhiteRuns);
               }
+            } else {
+              rowsWithFourEqualWhiteRunLengths.push(rowOfWhiteRuns);
             }
           }
         }
       }
     }
+
+    indexIntoRowsOfWhiteRuns++;
   }
 
-  console.log(rowsOfWhiteRunsFilter0);
+  console.log(rowsWithFourEqualWhiteRunLengths);
+
+  /*
+    look for entries in rowsWithFourEqualWhiteRunLengths where the row index is one greater than the row index of the prior entry in rowsWithFourEqualWhiteRunLengths and one less than the row index of the next entry in rowsOfWhiteRunsFilter0.
+    create a data structure to store these blocks with entries that match the above criteria
+  */
+
+  let inBlock = false;
+  let blockLength = 0;
+  let indexOfBlockStart = 0;      // index into rowsWithFourEqualWhiteRunLengths where block starts
+  let imageFileRowIndex = 0;      // index into image data structure
+
+  // special case first row
+  const rowWithFourEqualWhiteRunLengths: WhiteRunsInRow = rowsWithFourEqualWhiteRunLengths[0];
+  const nextRowWithFourEqualWhiteRunLengths: WhiteRunsInRow = rowsWithFourEqualWhiteRunLengths[1];
+  if (rowWithFourEqualWhiteRunLengths.whiteRuns[0].rowIndex === (nextRowWithFourEqualWhiteRunLengths.whiteRuns[0].rowIndex - 1)) {
+    inBlock = true;
+    indexOfBlockStart = 0;
+    blockLength = 1;
+  }
+
+  const blockEntries: BlockEntry[] = [];
+
+  for (let index = 1; (index < rowsWithFourEqualWhiteRunLengths.length - 1); index++) {
+
+    const priorRowWithFourEqualWhiteRunLengths: WhiteRunsInRow = rowsWithFourEqualWhiteRunLengths[index - 1];
+    const rowWithFourEqualWhiteRunLengths: WhiteRunsInRow = rowsWithFourEqualWhiteRunLengths[index];
+    const nextRowWithFourEqualWhiteRunLengths: WhiteRunsInRow = rowsWithFourEqualWhiteRunLengths[index + 1];
+
+    if (rowWithFourEqualWhiteRunLengths.whiteRuns[0].rowIndex === (priorRowWithFourEqualWhiteRunLengths.whiteRuns[0].rowIndex + 1)
+      && rowWithFourEqualWhiteRunLengths.whiteRuns[0].rowIndex === (nextRowWithFourEqualWhiteRunLengths.whiteRuns[0].rowIndex - 1)) {
+      // in block
+      if (!inBlock) {
+        inBlock = true;
+        indexOfBlockStart = index - 1;
+        imageFileRowIndex = rowWithFourEqualWhiteRunLengths.whiteRuns[0].rowIndex;
+        blockLength = 2;
+      }
+      blockLength++;
+
+    } else {
+      if (inBlock && blockLength >= 4) {
+        const blockEntry: BlockEntry = {
+          imageFileRowIndex,
+          indexOfBlockStart,
+          blockLength,
+        };
+        blockEntries.push(blockEntry);
+
+        inBlock = false;
+      }
+    }
+
+  }
+
+  // special case last row
+
+  console.log(blockEntries);
+
+  // let deltas: number[] = [];
+
+  // for (let index = 0; index < blockEntries.length - 1; index++) {
+  //   const blockEntry = blockEntries[index];
+  //   const nextBlockEntry = blockEntries[index +1];
+  //   const theDelta = nextBlockEntry.imageFileRowIndex - blockEntry.imageFileRowIndex;
+  //   if (!deltas.includes(theDelta)) {
+  //     deltas.push(theDelta);
+  //   }
+  // }
+
+  // console.log(deltas);
+
+  const rowDeltaCountsByRowDelta: any = {};
+
+  let ii = 0;
+  while (ii < (blockEntries.length - 1)) {
+    let jj = ii + 1;
+    while (jj < blockEntries.length) {
+      const rowDelta = blockEntries[jj].imageFileRowIndex - blockEntries[ii].imageFileRowIndex;
+      if (!rowDeltaCountsByRowDelta.hasOwnProperty(rowDelta)) {
+        rowDeltaCountsByRowDelta[rowDelta] = 0;
+      }
+      rowDeltaCountsByRowDelta[rowDelta]++;
+      jj++;
+    }
+    ii++;
+  }
+
+  console.log(rowDeltaCountsByRowDelta);
+
+  // iterate through the keys
+  // sum the counts for keys that are 'adjacent'
+  // find the one where the sum is 5
+  // what else can I do to verify the correct ones!!
+  // look at column info as well? 
+
+  const candidateRowDeltas: number[] = [];
+
+  let lastRowDelta = -9999;
+  let lastRowDeltaCount = -9999;
+
+  for (const rowDelta in rowDeltaCountsByRowDelta) {
+    if (Object.prototype.hasOwnProperty.call(rowDeltaCountsByRowDelta, rowDelta)) {
+      const rowDeltaCount = rowDeltaCountsByRowDelta[rowDelta];
+      if (rowDeltaCount === 5) {
+        candidateRowDeltas.push(rowDeltaCount);
+      } else if ((parseInt(rowDelta, 10) - lastRowDelta === 1)) {
+        if ((rowDeltaCount + lastRowDeltaCount) === 5) {
+          candidateRowDeltas.push(lastRowDelta);
+        }
+      }
+
+      lastRowDelta = parseInt(rowDelta, 10);
+      lastRowDeltaCount = rowDeltaCount;
+    }
+  }
+
+  console.log(candidateRowDeltas);
 }
 
 const old_fullScreenTests = (imageWidth: number, imageHeight: number, data: Buffer) => {
