@@ -552,7 +552,7 @@ const processRowsOfWhiteRuns = (rowsOfWhiteRuns: WhiteRunsInRow[]) => {
 
   }
 
-  // special case last row
+  // **** special case last row
 
   console.log(blockEntries);
 
@@ -598,23 +598,61 @@ const processRowsOfWhiteRuns = (rowsOfWhiteRuns: WhiteRunsInRow[]) => {
   let lastRowDelta = -9999;
   let lastRowDeltaCount = -9999;
 
+  let imageFileRowIndices: number[] = [];
+
   for (const rowDelta in rowDeltaCountsByRowDelta) {
     if (Object.prototype.hasOwnProperty.call(rowDeltaCountsByRowDelta, rowDelta)) {
+      const rowDeltaAsNumber = parseInt(rowDelta, 10);
       const rowDeltaCount = rowDeltaCountsByRowDelta[rowDelta];
       if (rowDeltaCount === 5) {
         candidateRowDeltas.push(rowDeltaCount);
-      } else if ((parseInt(rowDelta, 10) - lastRowDelta === 1)) {
+        // I want the rows that correspond to this rowDelta - if this isn't unique, flag it
+        if (imageFileRowIndices.length > 0) {
+          console.log('FAILBLOG');
+        }
+        imageFileRowIndices = getImageFileRowIndicesForRowDeltaCount(blockEntries, rowDeltaAsNumber);
+      } else if ((rowDeltaAsNumber - lastRowDelta === 1)) {
         if ((rowDeltaCount + lastRowDeltaCount) === 5) {
           candidateRowDeltas.push(lastRowDelta);
+          // I want the rows that correspond to this rowDelta && lastRowDelta
+          if (imageFileRowIndices.length > 0) {
+            console.log('FAILBLOG');
+          }
+          const lastImageFileRowIndices = getImageFileRowIndicesForRowDeltaCount(blockEntries, lastRowDelta);
+          const nextImageFileRowIndices = getImageFileRowIndicesForRowDeltaCount(blockEntries, rowDeltaAsNumber);
+          imageFileRowIndices = lastImageFileRowIndices.concat(nextImageFileRowIndices);
         }
       }
 
-      lastRowDelta = parseInt(rowDelta, 10);
+      lastRowDelta = rowDeltaAsNumber;
       lastRowDeltaCount = rowDeltaCount;
     }
   }
 
   console.log(candidateRowDeltas);
+
+  console.log('imageFileRowIndices: ');
+  console.log(imageFileRowIndices);
+}
+
+const getImageFileRowIndicesForRowDeltaCount = (blockEntries: BlockEntry[], specifiedRowDelta: number): number[] => {
+
+  const imageFileRowIndices: number[] = [];
+
+  let ii = 0;
+  while (ii < (blockEntries.length - 1)) {
+    let jj = ii + 1;
+    while (jj < blockEntries.length) {
+      const rowDelta = blockEntries[jj].imageFileRowIndex - blockEntries[ii].imageFileRowIndex;
+      if (rowDelta === specifiedRowDelta) {
+        imageFileRowIndices.push(blockEntries[ii].imageFileRowIndex);
+      }
+      jj++;
+    }
+    ii++;
+  }
+
+  return imageFileRowIndices;
 }
 
 const old_fullScreenTests = (imageWidth: number, imageHeight: number, data: Buffer) => {
