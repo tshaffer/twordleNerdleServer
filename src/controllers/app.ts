@@ -331,7 +331,19 @@ const getTextUsingOCR = (path: string): Promise<any> => {
   console.log(png.width);
   console.log(png.height);
 
-  fullScreenTests(png.width, png.height, png.data);
+  const imageFileRowIndices: number[] = fullScreenTests(png.width, png.height, png.data);
+  imageFileRowIndices.sort();
+
+  const gridItemSize: number = imageFileRowIndices[1] - imageFileRowIndices[0];
+  const gridSize: number = gridItemSize * 5;
+  const gridStartX: number = 1327;
+  const gridStartY: number = imageFileRowIndices[0];
+
+  var dst = new PNG({ width: gridSize, height: gridSize });
+  PNG.bitblt(png, dst, gridStartX, gridStartY, gridSize, gridSize);
+  dst.pack().pipe(fs.createWriteStream("wordleOut.png"));
+
+
 
   const retData: any = {
     guesses: [],
@@ -369,7 +381,7 @@ interface BlockEntry {
   blockLength: number;
 }
 
-const fullScreenTests = (imageWidth: number, imageHeight: number, data: Buffer) => {
+const fullScreenTests = (imageWidth: number, imageHeight: number, data: Buffer): number[] => {
 
   const rowsOfWhiteRuns: WhiteRunsInRow[] = [];
 
@@ -418,11 +430,12 @@ const fullScreenTests = (imageWidth: number, imageHeight: number, data: Buffer) 
 
   // console.log(rowsOfWhiteRuns);
 
-  processRowsOfWhiteRuns(rowsOfWhiteRuns);
+  const imageFileRowIndices = processRowsOfWhiteRuns(rowsOfWhiteRuns);
 
+  return imageFileRowIndices;
 }
 
-const processRowsOfWhiteRuns = (rowsOfWhiteRuns: WhiteRunsInRow[]) => {
+const processRowsOfWhiteRuns = (rowsOfWhiteRuns: WhiteRunsInRow[]): number[] => {
 
   const rowsWithFourEqualWhiteRunLengths: WhiteRunsInRow[] = [];
 
@@ -633,6 +646,11 @@ const processRowsOfWhiteRuns = (rowsOfWhiteRuns: WhiteRunsInRow[]) => {
 
   console.log('imageFileRowIndices: ');
   console.log(imageFileRowIndices);
+
+  return imageFileRowIndices;
+
+
+
 }
 
 const getImageFileRowIndicesForRowDeltaCount = (blockEntries: BlockEntry[], specifiedRowDelta: number): number[] => {
