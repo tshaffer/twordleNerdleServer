@@ -331,11 +331,15 @@ const getTextUsingOCR = (path: string): Promise<any> => {
   console.log(png.width);
   console.log(png.height);
 
-  const imageFileRowIndices: number[] = fullScreenTests(png.width, png.height, png.data);
+  // const imageFileRowIndices: number[] = fullScreenTests(png.width, png.height, png.data);
+  const foo: any = fullScreenTests(png.width, png.height, png.data);
+  const imageFileRowIndices: number[] = foo.imageFileRowIndices;
+  const whiteRunLength: number = foo.whiteRunLength;
+
   imageFileRowIndices.sort();
 
   const gridItemSize: number = imageFileRowIndices[1] - imageFileRowIndices[0];
-  const gridSize: number = gridItemSize * 5;
+  const gridSize: number = (gridItemSize * 5) - whiteRunLength;
   const gridStartX: number = 1327;
   const gridStartY: number = imageFileRowIndices[0];
 
@@ -373,15 +377,17 @@ interface WhiteRun {
 
 interface WhiteRunsInRow {
   whiteRuns: WhiteRun[];
+  runLength: number;
 }
 
 interface BlockEntry {
   imageFileRowIndex: number;
   indexOfBlockStart: number;
   blockLength: number;
+  whiteRunLength: number;
 }
 
-const fullScreenTests = (imageWidth: number, imageHeight: number, data: Buffer): number[] => {
+const fullScreenTests = (imageWidth: number, imageHeight: number, data: Buffer): any => {
 
   const rowsOfWhiteRuns: WhiteRunsInRow[] = [];
 
@@ -398,7 +404,7 @@ const fullScreenTests = (imageWidth: number, imageHeight: number, data: Buffer):
 
     inWhiteRun = false;
 
-    const currentWhiteRunsInRow: WhiteRunsInRow = { whiteRuns: [] };
+    const currentWhiteRunsInRow: WhiteRunsInRow = { whiteRuns: [], runLength: -1 };
     rowsOfWhiteRuns.push(currentWhiteRunsInRow);
 
     for (let columnIndex = 0; columnIndex < imageWidth; columnIndex++) {
@@ -430,12 +436,13 @@ const fullScreenTests = (imageWidth: number, imageHeight: number, data: Buffer):
 
   // console.log(rowsOfWhiteRuns);
 
-  const imageFileRowIndices = processRowsOfWhiteRuns(rowsOfWhiteRuns);
+  const foo = processRowsOfWhiteRuns(rowsOfWhiteRuns);
 
-  return imageFileRowIndices;
+  return foo;
 }
 
-const processRowsOfWhiteRuns = (rowsOfWhiteRuns: WhiteRunsInRow[]): number[] => {
+// const processRowsOfWhiteRuns = (rowsOfWhiteRuns: WhiteRunsInRow[]): number[] => {
+const processRowsOfWhiteRuns = (rowsOfWhiteRuns: WhiteRunsInRow[]): any => {
 
   const rowsWithFourEqualWhiteRunLengths: WhiteRunsInRow[] = [];
 
@@ -487,19 +494,21 @@ const processRowsOfWhiteRuns = (rowsOfWhiteRuns: WhiteRunsInRow[]): number[] => 
         countByRunLength[runLengthAtThisIndex]++;
       }
 
-      for (const key in countByRunLength) {
-        if (Object.prototype.hasOwnProperty.call(countByRunLength, key)) {
-          const runLengthCount = countByRunLength[key];
+      for (const runLength in countByRunLength) {
+        if (Object.prototype.hasOwnProperty.call(countByRunLength, runLength)) {
+          const runLengthCount = countByRunLength[runLength];
           if (runLengthCount >= 4) {
-            // two pushes for one row - does that make sense?
+            // two pushes for one row - does that make sense? NO - prevent it.
             const lastIndex = rowsWithFourEqualWhiteRunLengths.length - 1;
             if (lastIndex > 0) {
               const lastPushedRowIndex = rowsWithFourEqualWhiteRunLengths[lastIndex].whiteRuns[0].rowIndex;
               const newRowIndex = rowOfWhiteRuns.whiteRuns[0].rowIndex;
               if (newRowIndex > lastPushedRowIndex) {
+                rowOfWhiteRuns.runLength = parseInt(runLength, 10);
                 rowsWithFourEqualWhiteRunLengths.push(rowOfWhiteRuns);
               }
             } else {
+              rowOfWhiteRuns.runLength = parseInt(runLength, 10);
               rowsWithFourEqualWhiteRunLengths.push(rowOfWhiteRuns);
             }
           }
@@ -521,6 +530,7 @@ const processRowsOfWhiteRuns = (rowsOfWhiteRuns: WhiteRunsInRow[]): number[] => 
   let blockLength = 0;
   let indexOfBlockStart = 0;      // index into rowsWithFourEqualWhiteRunLengths where block starts
   let imageFileRowIndex = 0;      // index into image data structure
+  let whiteRunLength = -1;
 
   // special case first row
   const rowWithFourEqualWhiteRunLengths: WhiteRunsInRow = rowsWithFourEqualWhiteRunLengths[0];
@@ -547,6 +557,7 @@ const processRowsOfWhiteRuns = (rowsOfWhiteRuns: WhiteRunsInRow[]): number[] => 
         indexOfBlockStart = index - 1;
         imageFileRowIndex = rowWithFourEqualWhiteRunLengths.whiteRuns[0].rowIndex;
         blockLength = 2;
+        whiteRunLength = rowWithFourEqualWhiteRunLengths.runLength;
       }
       blockLength++;
 
@@ -556,6 +567,7 @@ const processRowsOfWhiteRuns = (rowsOfWhiteRuns: WhiteRunsInRow[]): number[] => 
           imageFileRowIndex,
           indexOfBlockStart,
           blockLength,
+          whiteRunLength,
         };
         blockEntries.push(blockEntry);
 
@@ -610,8 +622,10 @@ const processRowsOfWhiteRuns = (rowsOfWhiteRuns: WhiteRunsInRow[]): number[] => 
 
   let lastRowDelta = -9999;
   let lastRowDeltaCount = -9999;
-
+  
   let imageFileRowIndices: number[] = [];
+
+  whiteRunLength = -1;
 
   for (const rowDelta in rowDeltaCountsByRowDelta) {
     if (Object.prototype.hasOwnProperty.call(rowDeltaCountsByRowDelta, rowDelta)) {
@@ -623,7 +637,9 @@ const processRowsOfWhiteRuns = (rowsOfWhiteRuns: WhiteRunsInRow[]): number[] => 
         if (imageFileRowIndices.length > 0) {
           console.log('FAILBLOG');
         }
-        imageFileRowIndices = getImageFileRowIndicesForRowDeltaCount(blockEntries, rowDeltaAsNumber);
+        const foo = getImageFileRowIndicesForRowDeltaCount(blockEntries, rowDeltaAsNumber);
+        imageFileRowIndices = foo.imageFileRowIndices;
+        whiteRunLength = foo.whiteRunLength;
       } else if ((rowDeltaAsNumber - lastRowDelta === 1)) {
         if ((rowDeltaCount + lastRowDeltaCount) === 5) {
           candidateRowDeltas.push(lastRowDelta);
@@ -631,8 +647,11 @@ const processRowsOfWhiteRuns = (rowsOfWhiteRuns: WhiteRunsInRow[]): number[] => 
           if (imageFileRowIndices.length > 0) {
             console.log('FAILBLOG');
           }
-          const lastImageFileRowIndices = getImageFileRowIndicesForRowDeltaCount(blockEntries, lastRowDelta);
-          const nextImageFileRowIndices = getImageFileRowIndicesForRowDeltaCount(blockEntries, rowDeltaAsNumber);
+          const foo = getImageFileRowIndicesForRowDeltaCount(blockEntries, lastRowDelta);
+          const lastImageFileRowIndices = foo.imageFileRowIndices;
+          whiteRunLength = foo.whiteRunLength;
+          const poo = getImageFileRowIndicesForRowDeltaCount(blockEntries, rowDeltaAsNumber);
+          const nextImageFileRowIndices = poo.imageFileRowIndices;
           imageFileRowIndices = lastImageFileRowIndices.concat(nextImageFileRowIndices);
         }
       }
@@ -647,15 +666,20 @@ const processRowsOfWhiteRuns = (rowsOfWhiteRuns: WhiteRunsInRow[]): number[] => 
   console.log('imageFileRowIndices: ');
   console.log(imageFileRowIndices);
 
-  return imageFileRowIndices;
+  return {
+    imageFileRowIndices,
+    whiteRunLength
+  };
+  // return imageFileRowIndices;
 
 
 
 }
 
-const getImageFileRowIndicesForRowDeltaCount = (blockEntries: BlockEntry[], specifiedRowDelta: number): number[] => {
+const getImageFileRowIndicesForRowDeltaCount = (blockEntries: BlockEntry[], specifiedRowDelta: number): any => {
 
   const imageFileRowIndices: number[] = [];
+  let whiteRunLength: number = -1;
 
   let ii = 0;
   while (ii < (blockEntries.length - 1)) {
@@ -664,13 +688,14 @@ const getImageFileRowIndicesForRowDeltaCount = (blockEntries: BlockEntry[], spec
       const rowDelta = blockEntries[jj].imageFileRowIndex - blockEntries[ii].imageFileRowIndex;
       if (rowDelta === specifiedRowDelta) {
         imageFileRowIndices.push(blockEntries[ii].imageFileRowIndex);
+        whiteRunLength = blockEntries[ii].whiteRunLength;
       }
       jj++;
     }
     ii++;
   }
 
-  return imageFileRowIndices;
+  return { imageFileRowIndices, whiteRunLength };
 }
 
 const old_fullScreenTests = (imageWidth: number, imageHeight: number, data: Buffer) => {
