@@ -323,6 +323,14 @@ export const uploadFile = (request: Request, response: Response, next: any) => {
 
 const getTextUsingOCR = (path: string): Promise<any> => {
 
+  // return textFromImage('wordleOutCopy.png').then((data) => {
+  //   console.log('data from textFromImage using wordleOut.png');
+  //   console.log(data);
+
+  //   return data;
+  // });
+
+
   var data = fs.readFileSync(path);
   const png: PNGWithMetadata = PNG.sync.read(data, {
     filterType: -1,
@@ -345,15 +353,36 @@ const getTextUsingOCR = (path: string): Promise<any> => {
 
   var dst = new PNG({ width: gridSize, height: gridSize });
   PNG.bitblt(png, dst, gridStartX, gridStartY, gridSize, gridSize);
-  dst.pack().pipe(fs.createWriteStream("wordleOut.png"));
+
+  const croppedBuffer = PNG.sync.write(dst);
+  fs.writeFileSync('public/croppedWordleOut.png', croppedBuffer);
+
+  prepareImageForOCR(dst.width, dst.height, dst.data);
+
+  const buffer = PNG.sync.write(dst);
+  fs.writeFileSync('wordleOut.png', buffer);
+
+  return textFromImage('wordleOut.png').then((data) => {
+    console.log('data from textFromImage using wordleOut.png');
+    console.log(data);
+
+    return data;
+  });
 
 
 
-  const retData: any = {
-    guesses: [],
-  };
 
-  return Promise.resolve(retData);
+
+
+
+
+
+
+  // const retData: any = {
+  //   guesses: [],
+  // };
+
+  // return Promise.resolve(retData);
 
   // prepareImageForOCR(png.width, png.height, png.data);
 
@@ -911,7 +940,9 @@ const isLetterNotInWord = (red: any, green: any, blue: any): boolean => {
 
 export const getWords = (request: Request, response: Response, next: any) => {
 
-  const { pathOnServer, guesses } = request.body;
+  // const { pathOnServer, guesses } = request.body;
+  const { guesses } = request.body;
+  const pathOnServer = 'public/croppedWordleOut.png';
 
   var data = fs.readFileSync(pathOnServer);
 
@@ -1161,7 +1192,8 @@ const getLetterTypes = (guesses: string[], imageData: Buffer, imageWidth: number
   const numRows = contentIndicesByDirection.contentRowIndices.startIndices.length;
   const numColumns = contentIndicesByDirection.contentColumnIndices.startIndices.length;
 
-  for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
+  // for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
+  for (let rowIndex = 0; rowIndex < guesses.length; rowIndex++) {
     letterAnswerValues.push([]);
     const letterAnswersInRow = letterAnswerValues[rowIndex];
     for (let columnIndex = 0; columnIndex < numColumns; columnIndex++) {
