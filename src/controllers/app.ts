@@ -37,7 +37,7 @@ interface WhiteRunsInRow {
   runLength: number;            // TEDTODO - how is this single runLength determined? variable name?
 }
 
-interface WhiteRunsInRowWithFourEqualRunLengths {
+interface WhiteRunsInRowWithFourOrMoreEqualRunLengths {
   rowIndex: number;
   runLength: number;
 }
@@ -423,9 +423,9 @@ interface WhiteRunsInRowWithEqualRunLengths {
   runLength: number;
 }
 */
-const buildRowsWithFourEqualWhiteRunLengths = (whiteRunsInRows: WhiteRunsInRow[]): WhiteRunsInRowWithFourEqualRunLengths[] => {
+const buildRowsWithFourOrMoreEqualWhiteRunLengths = (whiteRunsInRows: WhiteRunsInRow[]): WhiteRunsInRowWithFourOrMoreEqualRunLengths[] => {
 
-  const rowsWithFourEqualWhiteRunLengths: WhiteRunsInRowWithFourEqualRunLengths[] = [];
+  const rowsWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths[] = [];
 
   let indexIntoRowsOfWhiteRuns = 0;
 
@@ -452,25 +452,25 @@ const buildRowsWithFourEqualWhiteRunLengths = (whiteRunsInRows: WhiteRunsInRow[]
         if (Object.prototype.hasOwnProperty.call(numberOfRunsForGivenRunLength, runLength)) {
           const numberOfRuns = numberOfRunsForGivenRunLength[runLength];
           if (numberOfRuns >= 4) {
-            const lastIndex = rowsWithFourEqualWhiteRunLengths.length - 1;
+            const lastIndex = rowsWithFourOrMoreEqualWhiteRunLengths.length - 1;
             if (lastIndex > 0) {
               // there may be circumstances where a single row has more than one run length with 4 or more instances.
               // in this case, use the first instance (already pushed) and discard the second instance
-              const lastPushedRowIndex = rowsWithFourEqualWhiteRunLengths[lastIndex].rowIndex;
+              const lastPushedRowIndex = rowsWithFourOrMoreEqualWhiteRunLengths[lastIndex].rowIndex;
               const newRowIndex = whiteRunsInRow.imageFileRowIndex;
               if (newRowIndex > lastPushedRowIndex) {
-                const rowWithFourEqualRunLengths: WhiteRunsInRowWithFourEqualRunLengths = {
+                const rowWithFourOrMoreEqualRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths = {
                   rowIndex: whiteRunsInRow.imageFileRowIndex,
                   runLength: parseInt(runLength, 10),
                 };
-                rowsWithFourEqualWhiteRunLengths.push(rowWithFourEqualRunLengths);
+                rowsWithFourOrMoreEqualWhiteRunLengths.push(rowWithFourOrMoreEqualRunLengths);
               }
             } else {
-              const rowWithFourEqualRunLengths: WhiteRunsInRowWithFourEqualRunLengths = {
+              const rowWithFourOrMoreEqualRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths = {
                 rowIndex: whiteRunsInRow.imageFileRowIndex,
                 runLength: parseInt(runLength, 10),
               };
-              rowsWithFourEqualWhiteRunLengths.push(rowWithFourEqualRunLengths);
+              rowsWithFourOrMoreEqualWhiteRunLengths.push(rowWithFourOrMoreEqualRunLengths);
             }
           }
         }
@@ -480,47 +480,47 @@ const buildRowsWithFourEqualWhiteRunLengths = (whiteRunsInRows: WhiteRunsInRow[]
     indexIntoRowsOfWhiteRuns++;
   }
 
-  return rowsWithFourEqualWhiteRunLengths;
+  return rowsWithFourOrMoreEqualWhiteRunLengths;
 }
 
 /*
   look for entries in rowsWithFourEqualWhiteRunLengths where the row index is one greater than the row index of the prior entry in rowsWithFourEqualWhiteRunLengths and one less than the row index of the next entry in rowsOfWhiteRunsFilter0.
   create a data structure to store these blocks with entries that match the above criteria
 */
-const buildBlockEntries = (rowsWithFourEqualWhiteRunLengths: WhiteRunsInRowWithFourEqualRunLengths[]): BlockEntry[] => {
+const buildBlockEntries = (rowsWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths[]): BlockEntry[] => {
 
   const blockEntries: BlockEntry[] = [];
 
   let inBlock = false;
   let blockLength = 0;
-  let indexOfBlockStart = 0;      // index into rowsWithFourEqualWhiteRunLengths where block starts
+  let indexOfBlockStart = 0;      // index into rowsWithFourOrMoreEqualWhiteRunLengths where block starts
   let imageFileRowIndex = 0;      // index into image data structure
   let whiteRunLength = -1;
 
   // special case first row
-  const rowWithFourEqualWhiteRunLengths: WhiteRunsInRowWithFourEqualRunLengths = rowsWithFourEqualWhiteRunLengths[0];
-  const nextRowWithFourEqualWhiteRunLengths: WhiteRunsInRowWithFourEqualRunLengths = rowsWithFourEqualWhiteRunLengths[1];
-  if (rowWithFourEqualWhiteRunLengths.rowIndex === (nextRowWithFourEqualWhiteRunLengths.rowIndex - 1)) {
+  const rowWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths = rowsWithFourOrMoreEqualWhiteRunLengths[0];
+  const nextRowWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths = rowsWithFourOrMoreEqualWhiteRunLengths[1];
+  if (rowWithFourOrMoreEqualWhiteRunLengths.rowIndex === (nextRowWithFourOrMoreEqualWhiteRunLengths.rowIndex - 1)) {
     inBlock = true;
     indexOfBlockStart = 0;
     blockLength = 1;
   }
 
-  for (let index = 1; (index < rowsWithFourEqualWhiteRunLengths.length - 1); index++) {
+  for (let index = 1; (index < rowsWithFourOrMoreEqualWhiteRunLengths.length - 1); index++) {
 
-    const priorRowWithFourEqualWhiteRunLengths: WhiteRunsInRowWithFourEqualRunLengths = rowsWithFourEqualWhiteRunLengths[index - 1];
-    const rowWithFourEqualWhiteRunLengths: WhiteRunsInRowWithFourEqualRunLengths = rowsWithFourEqualWhiteRunLengths[index];
-    const nextRowWithFourEqualWhiteRunLengths: WhiteRunsInRowWithFourEqualRunLengths = rowsWithFourEqualWhiteRunLengths[index + 1];
+    const priorRowWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths = rowsWithFourOrMoreEqualWhiteRunLengths[index - 1];
+    const rowWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths = rowsWithFourOrMoreEqualWhiteRunLengths[index];
+    const nextRowWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths = rowsWithFourOrMoreEqualWhiteRunLengths[index + 1];
 
-    if (rowWithFourEqualWhiteRunLengths.rowIndex === (priorRowWithFourEqualWhiteRunLengths.rowIndex + 1)
-      && rowWithFourEqualWhiteRunLengths.rowIndex === (nextRowWithFourEqualWhiteRunLengths.rowIndex - 1)) {
+    if (rowWithFourOrMoreEqualWhiteRunLengths.rowIndex === (priorRowWithFourOrMoreEqualWhiteRunLengths.rowIndex + 1)
+      && rowWithFourOrMoreEqualWhiteRunLengths.rowIndex === (nextRowWithFourOrMoreEqualWhiteRunLengths.rowIndex - 1)) {
       // in block
       if (!inBlock) {
         inBlock = true;
         indexOfBlockStart = index - 1;
-        imageFileRowIndex = rowWithFourEqualWhiteRunLengths.rowIndex;
+        imageFileRowIndex = rowWithFourOrMoreEqualWhiteRunLengths.rowIndex;
         blockLength = 2;
-        whiteRunLength = rowWithFourEqualWhiteRunLengths.runLength;
+        whiteRunLength = rowWithFourOrMoreEqualWhiteRunLengths.runLength;
       }
       blockLength++;
 
@@ -546,9 +546,9 @@ const buildBlockEntries = (rowsWithFourEqualWhiteRunLengths: WhiteRunsInRowWithF
 
 const processWhiteRunsInRows = (whiteRunsInRows: WhiteRunsInRow[]): WordleGridData => {
 
-  const rowsWithFourEqualWhiteRunLengths: WhiteRunsInRowWithFourEqualRunLengths[] = buildRowsWithFourEqualWhiteRunLengths(whiteRunsInRows);
+  const rowsWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths[] = buildRowsWithFourOrMoreEqualWhiteRunLengths(whiteRunsInRows);
 
-  const blockEntries: BlockEntry[] = buildBlockEntries(rowsWithFourEqualWhiteRunLengths);
+  const blockEntries: BlockEntry[] = buildBlockEntries(rowsWithFourOrMoreEqualWhiteRunLengths);
   console.log(blockEntries);
 
   const wordleGridData: WordleGridData = getWordleGridDataFromBlockEntries(blockEntries);
