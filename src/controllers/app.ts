@@ -27,7 +27,7 @@ export interface overlapGroupMap {
 }
 
 interface WhiteRun {
-  rowIndex: number;
+  imageFileColumnIndex: number;
   startColumn: number;
   runLength: number;
 }
@@ -378,10 +378,10 @@ const buildWhiteRunsInRows = (imageWidth: number, imageData: Buffer): WhiteRunsI
 
   let inWhiteRun: boolean = false;
   let whiteRunLength: number = 0;
-  let rowIndexOfWhiteRun = 0;
+  // let rowIndexOfWhiteRun = 0;
   let columnIndexOfWhiteRunStart = 0;
 
-  for (let rowIndex = 0; rowIndex < imageWidth; rowIndex++) {
+  for (let imageFileColumnIndex = 0; imageFileColumnIndex < imageWidth; imageFileColumnIndex++) {
 
     // don't care about trailing white run in prior row
 
@@ -391,11 +391,11 @@ const buildWhiteRunsInRows = (imageWidth: number, imageData: Buffer): WhiteRunsI
     whiteRunsInRows.push(currentWhiteRunsInRow);
 
     for (let columnIndex = 0; columnIndex < imageWidth; columnIndex++) {
-      const indexIntoWhiteAtImageDataRGBIndex = (rowIndex * imageWidth) + columnIndex;
+      const indexIntoWhiteAtImageDataRGBIndex = (imageFileColumnIndex * imageWidth) + columnIndex;
       if (!isWhiteAtImageDataRGBIndex[indexIntoWhiteAtImageDataRGBIndex]) {
         if (inWhiteRun) {
           const completedWhiteRun: WhiteRun = {
-            rowIndex,
+            imageFileColumnIndex: imageFileColumnIndex,
             startColumn: columnIndexOfWhiteRunStart,
             runLength: whiteRunLength,
           };
@@ -407,7 +407,7 @@ const buildWhiteRunsInRows = (imageWidth: number, imageData: Buffer): WhiteRunsI
         if (!inWhiteRun) {
           inWhiteRun = true;
           whiteRunLength = 1;
-          rowIndexOfWhiteRun = rowIndex;
+          // rowIndexOfWhiteRun = imageFileColumnIndex;
           columnIndexOfWhiteRunStart = columnIndex;
         } else {
           whiteRunLength++;
@@ -460,17 +460,17 @@ const buildRowsWithFourEqualWhiteRunLengths = (whiteRunsInRows: WhiteRunsInRow[]
               // there may be circumstances where a single row has more than one run length with 4 or more instances.
               // in this case, use the first instance (already pushed) and discard the second instance
               const lastPushedRowIndex = rowsWithFourEqualWhiteRunLengths[lastIndex].rowIndex;
-              const newRowIndex = whiteRunsInRow.whiteRuns[0].rowIndex;
+              const newRowIndex = whiteRunsInRow.whiteRuns[0].imageFileColumnIndex;
               if (newRowIndex > lastPushedRowIndex) {
                 const rowWithFourEqualRunLengths: WhiteRunsInRowWithFourEqualRunLengths = {
-                  rowIndex: whiteRunsInRow.whiteRuns[0].rowIndex,
+                  rowIndex: whiteRunsInRow.whiteRuns[0].imageFileColumnIndex,
                   runLength: parseInt(runLength, 10),
                 };
                 rowsWithFourEqualWhiteRunLengths.push(rowWithFourEqualRunLengths);
               }
             } else {
               const rowWithFourEqualRunLengths: WhiteRunsInRowWithFourEqualRunLengths = {
-                rowIndex: whiteRunsInRow.whiteRuns[0].rowIndex,
+                rowIndex: whiteRunsInRow.whiteRuns[0].imageFileColumnIndex,
                 runLength: parseInt(runLength, 10),
               };
               rowsWithFourEqualWhiteRunLengths.push(rowWithFourEqualRunLengths);
@@ -554,8 +554,15 @@ const processWhiteRunsInRows = (whiteRunsInRows: WhiteRunsInRow[]): WordleGridDa
   const blockEntries: BlockEntry[] = buildBlockEntries(rowsWithFourEqualWhiteRunLengths);
   console.log(blockEntries);
 
-  const rowDeltaCountsByRowDelta: any = {};
+  const wordleGridData: WordleGridData = getWordleGridDataFromBlockEntries(blockEntries);
+  return wordleGridData;
+}
 
+const getWordleGridDataFromBlockEntries = (blockEntries: BlockEntry[]): WordleGridData => {
+
+  // build a data structure that maps the delta between a block's y position and another block's y position and the number
+  // of block entries that have that delta.
+  const rowDeltaCountsByRowDelta: any = {};
   let ii = 0;
   while (ii < (blockEntries.length - 1)) {
     let jj = ii + 1;
@@ -572,14 +579,11 @@ const processWhiteRunsInRows = (whiteRunsInRows: WhiteRunsInRow[]): WordleGridDa
 
   console.log(rowDeltaCountsByRowDelta);
 
-  // iterate through the keys
-  // sum the counts for keys that are 'adjacent'
-  // find the one where the sum is 5
-  // what else can I do to verify the correct ones!!
-  // look at column info as well?
-  // ensure that there are full white lines between the block entries?
-
-  const candidateRowDeltas: number[] = [];
+  // iterate through the deltas rowDeltaCountsByRowDelta; sum the counts for the keys that are 'adjacent'
+  // find the one where the sum is 5 (NOTE - this doesn't always work)
+  // other ways to verify this
+  //    look at column info as well
+  //    ensure that there are full white lines between the block entries?
 
   let lastRowDelta = -9999;
   let lastRowDeltaCount = -9999;
@@ -593,26 +597,26 @@ const processWhiteRunsInRows = (whiteRunsInRows: WhiteRunsInRow[]): WordleGridDa
       const rowDeltaAsNumber = parseInt(rowDelta, 10);
       const rowDeltaCount = rowDeltaCountsByRowDelta[rowDelta];
       if (rowDeltaCount === 5) {
-        candidateRowDeltas.push(rowDeltaCount);
+        // this is the case where there is a single delta with 5 instances
         // I want the rows that correspond to this rowDelta - if this isn't unique, flag it
         if (imageFileRowIndices.length > 0) {
           console.log('FAILBLOG');
         }
-        const foo = getImageFileRowIndicesForRowDeltaCount(blockEntries, rowDeltaAsNumber);
-        imageFileRowIndices = foo.imageFileRowIndices;
-        whiteRunLength = foo.whiteRunLength;
+        const wordleGridData = getWordleGridDataForRowDeltaCount(blockEntries, rowDeltaAsNumber);
+        imageFileRowIndices = wordleGridData.imageFileRowIndices;
+        whiteRunLength = wordleGridData.whiteRunLength;
       } else if ((rowDeltaAsNumber - lastRowDelta === 1)) {
         if ((rowDeltaCount + lastRowDeltaCount) === 5) {
-          candidateRowDeltas.push(lastRowDelta);
+          // this is the case where there are 5 instances of the deltaValue and the deltaValue +/- 1
           // I want the rows that correspond to this rowDelta && lastRowDelta
           if (imageFileRowIndices.length > 0) {
             console.log('FAILBLOG');
           }
-          const foo = getImageFileRowIndicesForRowDeltaCount(blockEntries, lastRowDelta);
-          const lastImageFileRowIndices = foo.imageFileRowIndices;
-          whiteRunLength = foo.whiteRunLength;
-          const poo = getImageFileRowIndicesForRowDeltaCount(blockEntries, rowDeltaAsNumber);
-          const nextImageFileRowIndices = poo.imageFileRowIndices;
+          const wordleGridDataForLastRowDelta = getWordleGridDataForRowDeltaCount(blockEntries, lastRowDelta);
+          const lastImageFileRowIndices = wordleGridDataForLastRowDelta.imageFileRowIndices;
+          whiteRunLength = wordleGridDataForLastRowDelta.whiteRunLength;  // TEDTODO - why this run length and not next
+          const wordleGridDataForNextRow = getWordleGridDataForRowDeltaCount(blockEntries, rowDeltaAsNumber);
+          const nextImageFileRowIndices = wordleGridDataForNextRow.imageFileRowIndices;
           imageFileRowIndices = lastImageFileRowIndices.concat(nextImageFileRowIndices);
         }
       }
@@ -626,9 +630,10 @@ const processWhiteRunsInRows = (whiteRunsInRows: WhiteRunsInRow[]): WordleGridDa
     imageFileRowIndices,
     whiteRunLength
   };
+
 }
 
-const getImageFileRowIndicesForRowDeltaCount = (blockEntries: BlockEntry[], specifiedRowDelta: number): any => {
+const getWordleGridDataForRowDeltaCount = (blockEntries: BlockEntry[], specifiedRowDelta: number): WordleGridData => {
 
   const imageFileRowIndices: number[] = [];
   let whiteRunLength: number = -1;
@@ -648,61 +653,6 @@ const getImageFileRowIndicesForRowDeltaCount = (blockEntries: BlockEntry[], spec
   }
 
   return { imageFileRowIndices, whiteRunLength };
-}
-
-const old_fullScreenTests = (imageWidth: number, imageHeight: number, data: Buffer) => {
-
-  const whiteRunsByLength: any = {}
-
-  const whiteAtImageDataRGBIndex: boolean[] = buildIsWhiteAtImageDataRGBIndex(data as unknown as Uint8ClampedArray);
-
-  let inWhiteRun: boolean = false;
-  let whiteRunLength: number = 0;
-  let rowIndexOfWhiteRun = 0;
-  let columnIndexOfWhiteRunStart = 0;
-
-  for (let rowIndex = 0; rowIndex < imageWidth; rowIndex++) {
-    // don't care about trailing white run
-    inWhiteRun = false;
-    // if (inWhiteRun) {
-    //   if (!whiteRunsByLength.hasOwnProperty(whiteRunLength.toString())) {
-    //     whiteRunsByLength[whiteRunLength.toString()] = [];
-    //   }
-    //   whiteRunsByLength[whiteRunLength.toString()].push({
-    //     rowIndexOfWhiteRun,
-    //     columnIndexOfWhiteRunStart,
-    //   });
-    //   inWhiteRun = false;
-    // }
-    for (let columnIndex = 0; columnIndex < imageWidth; columnIndex++) {
-      const indexIntoWhiteAtImageDataRGBIndex = (rowIndex * imageWidth) + columnIndex;
-      if (!whiteAtImageDataRGBIndex[indexIntoWhiteAtImageDataRGBIndex]) {
-        if (inWhiteRun) {
-          if (!whiteRunsByLength.hasOwnProperty(whiteRunLength.toString())) {
-            whiteRunsByLength[whiteRunLength.toString()] = [];
-          }
-          whiteRunsByLength[whiteRunLength.toString()].push({
-            rowIndexOfWhiteRun,
-            columnIndexOfWhiteRunStart,
-          });
-          inWhiteRun = false;
-        }
-      } else {
-        if (!inWhiteRun) {
-          inWhiteRun = true;
-          whiteRunLength = 1;
-          rowIndexOfWhiteRun = rowIndex;
-          columnIndexOfWhiteRunStart = columnIndex;
-        } else {
-          whiteRunLength++;
-        }
-
-      }
-    }
-  }
-
-  const whiteRows: number[] = getWhiteRows(imageWidth, whiteAtImageDataRGBIndex);
-  console.log(whiteRows);
 }
 
 const prepareImageForOCR = (imageWidth: number, imageHeight: number, data: Buffer) => {
