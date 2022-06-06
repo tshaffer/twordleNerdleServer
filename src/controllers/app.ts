@@ -27,7 +27,7 @@ export interface overlapGroupMap {
 }
 
 interface WhiteRun {
-  imageFileColumnIndex: number;
+  rowIndex: number;
   startColumn: number;
   runLength: number;
 }
@@ -378,10 +378,10 @@ const buildWhiteRunsInRows = (imageWidth: number, imageData: Buffer): WhiteRunsI
 
   let inWhiteRun: boolean = false;
   let whiteRunLength: number = 0;
-  // let rowIndexOfWhiteRun = 0;
+  let rowIndexOfWhiteRun = 0;
   let columnIndexOfWhiteRunStart = 0;
 
-  for (let imageFileColumnIndex = 0; imageFileColumnIndex < imageWidth; imageFileColumnIndex++) {
+  for (let rowIndex = 0; rowIndex < imageWidth; rowIndex++) {
 
     // don't care about trailing white run in prior row
 
@@ -391,11 +391,11 @@ const buildWhiteRunsInRows = (imageWidth: number, imageData: Buffer): WhiteRunsI
     whiteRunsInRows.push(currentWhiteRunsInRow);
 
     for (let columnIndex = 0; columnIndex < imageWidth; columnIndex++) {
-      const indexIntoWhiteAtImageDataRGBIndex = (imageFileColumnIndex * imageWidth) + columnIndex;
+      const indexIntoWhiteAtImageDataRGBIndex = (rowIndex * imageWidth) + columnIndex;
       if (!isWhiteAtImageDataRGBIndex[indexIntoWhiteAtImageDataRGBIndex]) {
         if (inWhiteRun) {
           const completedWhiteRun: WhiteRun = {
-            imageFileColumnIndex: imageFileColumnIndex,
+            rowIndex,
             startColumn: columnIndexOfWhiteRunStart,
             runLength: whiteRunLength,
           };
@@ -407,7 +407,7 @@ const buildWhiteRunsInRows = (imageWidth: number, imageData: Buffer): WhiteRunsI
         if (!inWhiteRun) {
           inWhiteRun = true;
           whiteRunLength = 1;
-          // rowIndexOfWhiteRun = imageFileColumnIndex;
+          rowIndexOfWhiteRun = rowIndex;
           columnIndexOfWhiteRunStart = columnIndex;
         } else {
           whiteRunLength++;
@@ -460,17 +460,17 @@ const buildRowsWithFourEqualWhiteRunLengths = (whiteRunsInRows: WhiteRunsInRow[]
               // there may be circumstances where a single row has more than one run length with 4 or more instances.
               // in this case, use the first instance (already pushed) and discard the second instance
               const lastPushedRowIndex = rowsWithFourEqualWhiteRunLengths[lastIndex].rowIndex;
-              const newRowIndex = whiteRunsInRow.whiteRuns[0].imageFileColumnIndex;
+              const newRowIndex = whiteRunsInRow.whiteRuns[0].rowIndex;
               if (newRowIndex > lastPushedRowIndex) {
                 const rowWithFourEqualRunLengths: WhiteRunsInRowWithFourEqualRunLengths = {
-                  rowIndex: whiteRunsInRow.whiteRuns[0].imageFileColumnIndex,
+                  rowIndex: whiteRunsInRow.whiteRuns[0].rowIndex,
                   runLength: parseInt(runLength, 10),
                 };
                 rowsWithFourEqualWhiteRunLengths.push(rowWithFourEqualRunLengths);
               }
             } else {
               const rowWithFourEqualRunLengths: WhiteRunsInRowWithFourEqualRunLengths = {
-                rowIndex: whiteRunsInRow.whiteRuns[0].imageFileColumnIndex,
+                rowIndex: whiteRunsInRow.whiteRuns[0].rowIndex,
                 runLength: parseInt(runLength, 10),
               };
               rowsWithFourEqualWhiteRunLengths.push(rowWithFourEqualRunLengths);
