@@ -41,3 +41,78 @@ export const isColorWhitish = (red: any, green: any, blue: any): boolean => {
   );
 }
 
+export const buildIsWhiteAtImageDataRGBIndex = (imageDataRGBA: Uint8ClampedArray): boolean[] => {
+
+  const whiteAtImageDataRGBAIndex: boolean[] = [];
+
+  for (let imageDataIndex = 0; imageDataIndex < imageDataRGBA.length; imageDataIndex += 4) {
+    const red = imageDataRGBA[imageDataIndex];
+    const green = imageDataRGBA[imageDataIndex + 1];
+    const blue = imageDataRGBA[imageDataIndex + 2];
+    if (isColorWhitish(red, green, blue)) {
+      whiteAtImageDataRGBAIndex.push(true);
+    } else {
+      whiteAtImageDataRGBAIndex.push(false);
+    }
+  }
+  return whiteAtImageDataRGBAIndex;
+};
+
+export const getWhiteRows = (canvasWidth: number, whiteAtImageDataRGBIndex: boolean[]): number[] => {
+
+  const pixelOffsetFromEdge = 10;
+
+  const whiteRows: number[] = [];
+
+  for (let rowIndex = 0; rowIndex < canvasWidth; rowIndex++) {
+    let allPixelsInRowAreWhite = true;
+    for (let columnIndex = pixelOffsetFromEdge; columnIndex < (canvasWidth - (pixelOffsetFromEdge * 2)); columnIndex++) {
+      // convert rowIndex, columnIndex into index into whiteAtImageDataRGBIndex
+      const indexIntoWhiteAtImageDataRGBIndex = (rowIndex * canvasWidth) + columnIndex;
+      if (!whiteAtImageDataRGBIndex[indexIntoWhiteAtImageDataRGBIndex]) {
+        allPixelsInRowAreWhite = false;
+        // break here if the code just breaks the inner loop
+      }
+    }
+    if (allPixelsInRowAreWhite) {
+      whiteRows.push(rowIndex);
+    }
+  }
+
+  return whiteRows;
+};
+
+export const getWhiteColumns = (canvasWidth: number, canvasHeight: number, whiteAtImageDataRGBIndex: boolean[]): number[] => {
+
+  const pixelOffsetFromEdge = 10;
+
+  const whiteColumns: number[] = [];
+  for (let columnIndex = 0; columnIndex < canvasWidth; columnIndex++) {
+    let allPixelsInColumnAreWhite = true;
+    for (let rowIndex = pixelOffsetFromEdge; rowIndex < (canvasHeight - (pixelOffsetFromEdge * 2)); rowIndex++) {
+      // convert rowIndex, columnIndex into index into whiteAtImageDataRGBIndex
+      const indexIntoWhiteAtImageDataRGBIndex = (rowIndex * canvasWidth) + columnIndex;
+      if (!whiteAtImageDataRGBIndex[indexIntoWhiteAtImageDataRGBIndex]) {
+        allPixelsInColumnAreWhite = false;
+        // TEDTODO - break here
+      }
+    }
+    if (allPixelsInColumnAreWhite) {
+      whiteColumns.push(columnIndex);
+    }
+  }
+  return whiteColumns;
+};
+
+export const isLetterAtExactLocation = (red: any, green: any, blue: any): boolean => {
+  return isColorGreenish(red, green, blue);
+};
+
+export const isLetterNotAtExactLocation = (red: any, green: any, blue: any): boolean => {
+  return isColorGoldish(red, green, blue);
+};
+
+export const isLetterNotInWord = (red: any, green: any, blue: any): boolean => {
+  return isColorGrayish(red, green, blue);
+};
+
