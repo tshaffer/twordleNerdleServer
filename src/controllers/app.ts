@@ -38,14 +38,14 @@ interface WhiteRunsInRow {
 }
 
 interface WhiteRunsInRowWithFourOrMoreEqualRunLengths {
-  rowIndex: number;
+  imageFileRowIndex: number;
   runLength: number;
 }
 
 interface BlockEntry {
   imageFileRowIndex: number;
   indexOfBlockStart: number;
-  blockLength: number;
+  numberOfRowsInBlock: number;
   whiteRunLength: number;
 }
 
@@ -427,15 +427,13 @@ const buildRowsWithFourOrMoreEqualWhiteRunLengths = (whiteRunsInRows: WhiteRunsI
 
   const rowsWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths[] = [];
 
-  let indexIntoRowsOfWhiteRuns = 0;
-
   for (const whiteRunsInRow of whiteRunsInRows) {
     // for this to be a row that might include a letter, it must have at least 6 white runs
     // one before the grid; four inside the grid; one after the grid
-    // note - if the user has entered a character into a row, there will be additional white runs
+    // note - if the user has entered a character into a row, there may be additional white runs
     if (whiteRunsInRow.whiteRuns.length >= 6) {
 
-      // check for instance(s) of 4 whiteRuns that have 'equivalent' length
+      // check for instance(s) of 4 or more whiteRuns that have 'equivalent' length
 
       // build structure that indicates that number of runs in a single row by runLength
       const numberOfRunsForGivenRunLength: NumberByNumberLUT = {}
@@ -456,18 +454,18 @@ const buildRowsWithFourOrMoreEqualWhiteRunLengths = (whiteRunsInRows: WhiteRunsI
             if (lastIndex > 0) {
               // there may be circumstances where a single row has more than one run length with 4 or more instances.
               // in this case, use the first instance (already pushed) and discard the second instance
-              const lastPushedRowIndex = rowsWithFourOrMoreEqualWhiteRunLengths[lastIndex].rowIndex;
+              const lastPushedRowIndex = rowsWithFourOrMoreEqualWhiteRunLengths[lastIndex].imageFileRowIndex;
               const newRowIndex = whiteRunsInRow.imageFileRowIndex;
               if (newRowIndex > lastPushedRowIndex) {
                 const rowWithFourOrMoreEqualRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths = {
-                  rowIndex: whiteRunsInRow.imageFileRowIndex,
+                  imageFileRowIndex: whiteRunsInRow.imageFileRowIndex,
                   runLength: parseInt(runLength, 10),
                 };
                 rowsWithFourOrMoreEqualWhiteRunLengths.push(rowWithFourOrMoreEqualRunLengths);
               }
             } else {
               const rowWithFourOrMoreEqualRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths = {
-                rowIndex: whiteRunsInRow.imageFileRowIndex,
+                imageFileRowIndex: whiteRunsInRow.imageFileRowIndex,
                 runLength: parseInt(runLength, 10),
               };
               rowsWithFourOrMoreEqualWhiteRunLengths.push(rowWithFourOrMoreEqualRunLengths);
@@ -476,8 +474,6 @@ const buildRowsWithFourOrMoreEqualWhiteRunLengths = (whiteRunsInRows: WhiteRunsI
         }
       }
     }
-
-    indexIntoRowsOfWhiteRuns++;
   }
 
   return rowsWithFourOrMoreEqualWhiteRunLengths;
@@ -492,7 +488,7 @@ const buildBlockEntries = (rowsWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRo
   const blockEntries: BlockEntry[] = [];
 
   let inBlock = false;
-  let blockLength = 0;
+  let numberOfRowsInBlock = 0;
   let indexOfBlockStart = 0;      // index into rowsWithFourOrMoreEqualWhiteRunLengths where block starts
   let imageFileRowIndex = 0;      // index into image data structure
   let whiteRunLength = -1;
@@ -500,10 +496,10 @@ const buildBlockEntries = (rowsWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRo
   // special case first row
   const rowWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths = rowsWithFourOrMoreEqualWhiteRunLengths[0];
   const nextRowWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths = rowsWithFourOrMoreEqualWhiteRunLengths[1];
-  if (rowWithFourOrMoreEqualWhiteRunLengths.rowIndex === (nextRowWithFourOrMoreEqualWhiteRunLengths.rowIndex - 1)) {
+  if (rowWithFourOrMoreEqualWhiteRunLengths.imageFileRowIndex === (nextRowWithFourOrMoreEqualWhiteRunLengths.imageFileRowIndex - 1)) {
     inBlock = true;
     indexOfBlockStart = 0;
-    blockLength = 1;
+    numberOfRowsInBlock = 1;
   }
 
   for (let index = 1; (index < rowsWithFourOrMoreEqualWhiteRunLengths.length - 1); index++) {
@@ -512,24 +508,24 @@ const buildBlockEntries = (rowsWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRo
     const rowWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths = rowsWithFourOrMoreEqualWhiteRunLengths[index];
     const nextRowWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths = rowsWithFourOrMoreEqualWhiteRunLengths[index + 1];
 
-    if (rowWithFourOrMoreEqualWhiteRunLengths.rowIndex === (priorRowWithFourOrMoreEqualWhiteRunLengths.rowIndex + 1)
-      && rowWithFourOrMoreEqualWhiteRunLengths.rowIndex === (nextRowWithFourOrMoreEqualWhiteRunLengths.rowIndex - 1)) {
+    if (rowWithFourOrMoreEqualWhiteRunLengths.imageFileRowIndex === (priorRowWithFourOrMoreEqualWhiteRunLengths.imageFileRowIndex + 1)
+      && rowWithFourOrMoreEqualWhiteRunLengths.imageFileRowIndex === (nextRowWithFourOrMoreEqualWhiteRunLengths.imageFileRowIndex - 1)) {
       // in block
       if (!inBlock) {
         inBlock = true;
         indexOfBlockStart = index - 1;
-        imageFileRowIndex = rowWithFourOrMoreEqualWhiteRunLengths.rowIndex;
-        blockLength = 2;
+        imageFileRowIndex = rowWithFourOrMoreEqualWhiteRunLengths.imageFileRowIndex;
+        numberOfRowsInBlock = 2;
         whiteRunLength = rowWithFourOrMoreEqualWhiteRunLengths.runLength;
       }
-      blockLength++;
+      numberOfRowsInBlock++;
 
     } else {
-      if (inBlock && blockLength >= 4) {
+      if (inBlock && numberOfRowsInBlock >= 4) {
         const blockEntry: BlockEntry = {
           imageFileRowIndex,
           indexOfBlockStart,
-          blockLength,
+          numberOfRowsInBlock,
           whiteRunLength,
         };
         blockEntries.push(blockEntry);
