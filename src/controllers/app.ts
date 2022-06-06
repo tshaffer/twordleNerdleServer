@@ -365,12 +365,12 @@ const getTextUsingOCR = (path: string): Promise<any> => {
 }
 
 const getWordleGridData = (imageWidth: number, imageHeight: number, imageData: Buffer): WordleGridData => {
-  const whiteRunsInRows: WhiteRunsInRow[] = buildWhiteRunsInRows(imageWidth, imageData);
+  const whiteRunsInRows: WhiteRunsInRow[] = buildWhiteRunsInRows(imageWidth, imageHeight, imageData);
   const wordleGridData: WordleGridData = processWhiteRunsInRows(whiteRunsInRows);
   return wordleGridData;
 }
 
-const buildWhiteRunsInRows = (imageWidth: number, imageData: Buffer): WhiteRunsInRow[] => {
+const buildWhiteRunsInRows = (imageWidth: number, imageHeight: number, imageData: Buffer): WhiteRunsInRow[] => {
 
   const whiteRunsInRows: WhiteRunsInRow[] = [];
 
@@ -381,7 +381,7 @@ const buildWhiteRunsInRows = (imageWidth: number, imageData: Buffer): WhiteRunsI
   let rowIndexOfWhiteRun = 0;
   let columnIndexOfWhiteRunStart = 0;
 
-  for (let imageFileRowIndex = 0; imageFileRowIndex < imageWidth; imageFileRowIndex++) {
+  for (let imageFileRowIndex = 0; imageFileRowIndex < imageHeight; imageFileRowIndex++) {
 
     // don't care about trailing white run in prior row
 
@@ -398,7 +398,6 @@ const buildWhiteRunsInRows = (imageWidth: number, imageData: Buffer): WhiteRunsI
             startColumn: columnIndexOfWhiteRunStart,
             runLength: whiteRunLength,
           };
-
           currentWhiteRunsInRow.whiteRuns.push(completedWhiteRun);
           inWhiteRun = false;
         }
@@ -411,7 +410,6 @@ const buildWhiteRunsInRows = (imageWidth: number, imageData: Buffer): WhiteRunsI
         } else {
           whiteRunLength++;
         }
-
       }
     }
   }
