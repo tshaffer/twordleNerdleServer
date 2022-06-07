@@ -1,5 +1,5 @@
 import * as vision from '@google-cloud/vision';
-import { isBoolean } from 'lodash';
+import { isBoolean, isString } from 'lodash';
 
 import { point } from '../types';
 import { rectanglesOverlap } from '../utilities';
@@ -31,8 +31,14 @@ async function textFromImage(fileName: string) {
 
   // Read a local image as a text document
   const [result]: vision.protos.google.cloud.vision.v1.IAnnotateImageResponse[] = await client.documentTextDetection(fileName);
-  const lettersInRows: string[][] = analyzeOCRResult(result);
-  console.log(lettersInRows);
+  const guesses: string[] = analyzeOCRResult(result);
+  console.log(guesses);
+
+  const data: any = {
+    guesses,
+  };
+
+  return data;
 }
 
 async function xtextFromImage(fileName: string) {
@@ -251,12 +257,12 @@ async function xtextFromImage(fileName: string) {
 
 }
 
-const analyzeOCRResult = (result: vision.protos.google.cloud.vision.v1.IAnnotateImageResponse): string[][] => {
+const analyzeOCRResult = (result: vision.protos.google.cloud.vision.v1.IAnnotateImageResponse): string[] => {
 
   const fullTextAnnotation: vision.protos.google.cloud.vision.v1.ITextAnnotation = result.fullTextAnnotation;
   const pages: vision.protos.google.cloud.vision.v1.IPage[] = fullTextAnnotation.pages;
 
-  const lettersInRows: string[][] = [[], [], [], [], []];
+  const words: string[] = ['', '', '', '', ''];
   let rowIndex = 0;
 
   pages.forEach((page: vision.protos.google.cloud.vision.v1.IPage) => {
@@ -264,12 +270,15 @@ const analyzeOCRResult = (result: vision.protos.google.cloud.vision.v1.IAnnotate
     blocks.forEach((block: vision.protos.google.cloud.vision.v1.IBlock) => {
       const paragraphs: vision.protos.google.cloud.vision.v1.IParagraph[] = block.paragraphs;
       paragraphs.forEach((paragraph) => {
-        const words: vision.protos.google.cloud.vision.v1.IWord[] = paragraph.words;
-        words.forEach((word) => {
+        const ocrWords: vision.protos.google.cloud.vision.v1.IWord[] = paragraph.words;
+        ocrWords.forEach((word) => {
           const symbols: vision.protos.google.cloud.vision.v1.ISymbol[] = word.symbols;
           symbols.forEach((symbol: vision.protos.google.cloud.vision.v1.ISymbol) => {
-            lettersInRows[rowIndex].push((symbol as TwordleSymbol).text);
-            if (lettersInRows[rowIndex].length === 5) {
+            if (isString((symbol as TwordleSymbol).text)) {
+              const updatedWord = words[rowIndex] + (symbol as TwordleSymbol).text;
+              words[rowIndex] = updatedWord;
+            }
+            if (words[rowIndex].length === 5) {
               rowIndex++;
             }
           });
@@ -278,5 +287,5 @@ const analyzeOCRResult = (result: vision.protos.google.cloud.vision.v1.IAnnotate
     });
   });
 
-  return lettersInRows;
+  return words;
 }
