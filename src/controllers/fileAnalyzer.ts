@@ -517,6 +517,8 @@ const buildColumnBlockEntries = (columnsWithFourOrMoreEqualWhiteRunLengths: Whit
   if (columnWithFourOrMoreEqualWhiteRunLengths.imageFileColumnIndex === (nextColumnWithFourOrMoreEqualWhiteRunLengths.imageFileColumnIndex - 1)) {
     inBlock = true;
     indexOfBlockStart = 0;
+    // TEDTODO - fix in row function
+    imageFileColumnIndex = columnWithFourOrMoreEqualWhiteRunLengths.imageFileColumnIndex;
     numberOfColumnsInBlock = 1;
   }
 
@@ -535,9 +537,20 @@ const buildColumnBlockEntries = (columnsWithFourOrMoreEqualWhiteRunLengths: Whit
         imageFileColumnIndex = columnWithFourOrMoreEqualWhiteRunLengths.imageFileColumnIndex;
         numberOfColumnsInBlock = 2;
         whiteRunLength = columnWithFourOrMoreEqualWhiteRunLengths.runLength;
+      } else if (index === (columnsWithFourOrMoreEqualWhiteRunLengths.length - 2)) {
+        // last column - special case
+        // TEDTODO - fix in row function
+        if (numberOfColumnsInBlock >= 4) {
+          const blockEntry: ColumnBlockEntry = {
+            imageFileColumnIndex,
+            indexOfBlockStart,
+            numberOfColumnsInBlock,
+            whiteRunLength,
+          };
+          blockEntries.push(blockEntry);
+        }
       }
       numberOfColumnsInBlock++;
-
     } else {
       if (inBlock && numberOfColumnsInBlock >= 4) {
         const blockEntry: ColumnBlockEntry = {
@@ -553,7 +566,7 @@ const buildColumnBlockEntries = (columnsWithFourOrMoreEqualWhiteRunLengths: Whit
     }
   }
 
-  // TEDTODO **** special case last column
+  // TEDTODO **** special case last columnsWithFourOrMoreEqualWhiteRunLengths
 
   return blockEntries;
 }
