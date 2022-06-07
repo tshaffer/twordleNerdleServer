@@ -253,7 +253,8 @@ async function textFromImage(fileName: string) {
   allSymbolRows.forEach((symbolRow, rowIndex) => {
     guesses.push('');
     symbolRow.forEach((symbol) => {
-      guesses[rowIndex] += symbol.text;
+      // guesses[rowIndex] += symbol.text;
+      guesses[rowIndex] = guesses[rowIndex] + symbol.text;
       // console.log(symbol.rowIndex, symbol.text, symbol.boundingBox.vertices);
     })
   });

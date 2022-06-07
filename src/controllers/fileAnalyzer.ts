@@ -10,6 +10,44 @@ interface NumberByNumberLUT {
   [id: number]: number;
 }
 
+interface WhiteRunsInRowOrColumn {
+  imageFileRowOrColumnIndex: number;
+  whiteRuns: WhiteRunNew[];
+  runLength: number;            // TEDTODO - how is this single runLength determined? variable name?
+}
+
+interface WhiteRunNew {
+  startIndex: number;
+  runLength: number;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// interface WhiteRunNew {
+//   startRow: number;
+//   runLength: number;
+// }
+
+interface WhiteRunsInColumn {
+  imageFileColumnIndex: number;
+  whiteRuns: WhiteRunNew[];
+  runLength: number;            // TEDTODO - how is this single runLength determined? variable name?
+}
+
+
+
 interface WhiteRun {
   startColumn: number;
   runLength: number;
@@ -26,12 +64,25 @@ interface WhiteRunsInRowWithFourOrMoreEqualRunLengths {
   runLength: number;
 }
 
-interface BlockEntry {
+interface WhiteRunsInColumnsWithFiveOrMoreEqualRunLengths {
+  imageFileColumnIndex: number;
+  runLength: number;
+}
+
+interface RowBlockEntry {
   imageFileRowIndex: number;
   indexOfBlockStart: number;
   numberOfRowsInBlock: number;
   whiteRunLength: number;
 }
+
+interface ColumnBlockEntry {
+  imageFileColumnIndex: number;
+  indexOfBlockStart: number;
+  numberOfColumnsInBlock: number;
+  whiteRunLength: number;
+}
+
 
 interface WordleGridData {
   imageFileRowIndices: number[],
@@ -105,7 +156,8 @@ const convertWhiteColumnsToBlack = (canvasWidth: number, canvasHeight: number, w
 };
 
 const convertBackgroundColorsToBlack = (imgData: Buffer) => {
-  for (let i = 0; i < imgData.length; i += 4) {
+  // for (let i = 0; i < imgData.length; i += 4) {
+  for (let i = 0; i < imgData.length; i = i + 4) {
     const red = imgData[i];
     const green = imgData[i + 1];
     const blue = imgData[i + 2];
@@ -118,10 +170,16 @@ const convertBackgroundColorsToBlack = (imgData: Buffer) => {
   }
 };
 
-
 const getWordleGridData = (imageWidth: number, imageHeight: number, imageData: Buffer): WordleGridData => {
+
   const whiteRunsInRows: WhiteRunsInRow[] = buildWhiteRunsInRows(imageWidth, imageHeight, imageData);
-  const wordleGridData: WordleGridData = processWhiteRunsInRows(whiteRunsInRows);
+  const whiteRunsInColumns: WhiteRunsInColumn[] = buildWhiteRunsInColumns(imageWidth, imageHeight, imageData);
+
+  const rowBlockEntries: RowBlockEntry[] = processWhiteRunsInRows(whiteRunsInRows);
+  const columnBlockEntries: ColumnBlockEntry[] = processWhiteRunsInColumns(whiteRunsInColumns);
+
+  const wordleGridData: WordleGridData = getWordleGridDataFromBlockEntries(rowBlockEntries, columnBlockEntries);
+
   return wordleGridData;
 }
 
@@ -170,6 +228,103 @@ const buildWhiteRunsInRows = (imageWidth: number, imageHeight: number, imageData
   }
 
   return whiteRunsInRows;
+}
+
+const buildWhiteRunsInColumns = (imageWidth: number, imageHeight: number, imageData: Buffer): WhiteRunsInColumn[] => {
+
+  const whiteRunsInColumns: WhiteRunsInColumn[] = [];
+
+  const isWhiteAtImageDataRGBIndex: boolean[] = buildIsWhiteAtImageDataRGBIndex(imageData as unknown as Uint8ClampedArray);
+
+  let inWhiteRun: boolean = false;
+  let whiteRunLength: number = 0;
+  let columnIndexOfWhiteRun = 0;
+  let rowIndexOfWhiteRunStart = 0;
+
+  for (let imageFileColumnIndex = 0; imageFileColumnIndex < imageWidth; imageFileColumnIndex++) {
+
+    // don't care about trailing white run in prior row
+
+    inWhiteRun = false;
+
+    const currentWhiteRunsInRow: WhiteRunsInColumn = { imageFileColumnIndex, whiteRuns: [], runLength: -1 };
+    whiteRunsInColumns.push(currentWhiteRunsInRow);
+
+    for (let imageFileRowIndex = 0; imageFileRowIndex < imageHeight; imageFileRowIndex++) {
+      const indexIntoWhiteAtImageDataRGBIndex = (imageFileRowIndex * imageWidth) + imageFileColumnIndex;
+      if (!isWhiteAtImageDataRGBIndex[indexIntoWhiteAtImageDataRGBIndex]) {
+        if (inWhiteRun) {
+          const completedWhiteRun: WhiteRunNew = {
+            startIndex: rowIndexOfWhiteRunStart,
+            runLength: whiteRunLength,
+          };
+          currentWhiteRunsInRow.whiteRuns.push(completedWhiteRun);
+          inWhiteRun = false;
+        }
+      } else {
+        if (!inWhiteRun) {
+          inWhiteRun = true;
+          whiteRunLength = 1;
+          columnIndexOfWhiteRun = imageFileColumnIndex;
+          rowIndexOfWhiteRunStart = imageFileRowIndex;
+        } else {
+          whiteRunLength++;
+        }
+      }
+    }
+  }
+
+  return whiteRunsInColumns;
+}
+
+
+
+const buildWhiteRunsInRowsOrColumns = (imageLengthInOtherDirection: number, imageLengthInDirection: number, imageData: Buffer): WhiteRunsInRowOrColumn[] => {
+
+  const whiteRunsInRowsOrColumns: WhiteRunsInRowOrColumn[] = [];
+
+  const isWhiteAtImageDataRGBIndex: boolean[] = buildIsWhiteAtImageDataRGBIndex(imageData as unknown as Uint8ClampedArray);
+
+  let inWhiteRun: boolean = false;
+  let whiteRunLength: number = 0;
+  let rowOrColumnIndexOfWhiteRun = 0;
+  let rowOrColumnIndexOfWhiteRunStart = 0;
+
+  for (let imageFileRowOrColumnIndex = 0; imageFileRowOrColumnIndex < imageLengthInDirection; imageFileRowOrColumnIndex++) {
+
+    // don't care about trailing white run in prior row
+
+    inWhiteRun = false;
+
+    const currentWhiteRunsInRowOrColumn: WhiteRunsInRowOrColumn = { imageFileRowOrColumnIndex, whiteRuns: [], runLength: -1 };
+    whiteRunsInRowsOrColumns.push(currentWhiteRunsInRowOrColumn);
+
+    for (let imageFileColumnOrRowIndex = 0; imageFileColumnOrRowIndex < imageLengthInOtherDirection; imageFileColumnOrRowIndex++) {
+      const indexIntoWhiteAtImageDataRGBIndex = (imageFileRowOrColumnIndex * imageLengthInOtherDirection) + imageFileColumnOrRowIndex;
+      if (!isWhiteAtImageDataRGBIndex[indexIntoWhiteAtImageDataRGBIndex]) {
+        if (inWhiteRun) {
+          const completedWhiteRun: WhiteRunNew = {
+            startIndex: rowOrColumnIndexOfWhiteRunStart,
+            runLength: whiteRunLength,
+          };
+          currentWhiteRunsInRowOrColumn.whiteRuns.push(completedWhiteRun);
+          inWhiteRun = false;
+        }
+      } else {
+        if (!inWhiteRun) {
+          inWhiteRun = true;
+          whiteRunLength = 1;
+          rowOrColumnIndexOfWhiteRun = imageFileRowOrColumnIndex;
+          rowOrColumnIndexOfWhiteRunStart = imageFileColumnOrRowIndex;
+        } else {
+          whiteRunLength++;
+        }
+      }
+    }
+  }
+
+  return whiteRunsInRowsOrColumns;
+
 }
 
 const buildRowsWithFourOrMoreEqualWhiteRunLengths = (whiteRunsInRows: WhiteRunsInRow[]): WhiteRunsInRowWithFourOrMoreEqualRunLengths[] => {
@@ -228,13 +383,70 @@ const buildRowsWithFourOrMoreEqualWhiteRunLengths = (whiteRunsInRows: WhiteRunsI
   return rowsWithFourOrMoreEqualWhiteRunLengths;
 }
 
+const buildColumnsWithFiveOrMoreEqualWhiteRunLengths = (whiteRunsInColumns: WhiteRunsInColumn[]): WhiteRunsInColumnsWithFiveOrMoreEqualRunLengths[] => {
+
+  const columnsWithFiveOrMoreEqualWhiteRunLengths: WhiteRunsInColumnsWithFiveOrMoreEqualRunLengths[] = [];
+
+  for (const whiteRunsInColumn of whiteRunsInColumns) {
+    // for this to be a column that might include a letter, it must have at least 7 white runs
+    // one before the grid; five inside the grid; one after the grid
+    // note - if the user has entered a character into a row, there may be additional white runs
+    if (whiteRunsInColumn.whiteRuns.length >= 6) {
+
+      // check for instance(s) of 4 or more whiteRuns that have 'equivalent' length
+
+      // build structure that indicates that number of runs in a single row by runLength
+      const numberOfRunsForGivenRunLength: NumberByNumberLUT = {}
+      for (let indexOfWhiteRunInColumn = 0; indexOfWhiteRunInColumn < whiteRunsInColumn.whiteRuns.length; indexOfWhiteRunInColumn++) {
+        const runLengthAtThisIndex: number = whiteRunsInColumn.whiteRuns[indexOfWhiteRunInColumn].runLength;
+        if (!numberOfRunsForGivenRunLength.hasOwnProperty(runLengthAtThisIndex.toString())) {
+          numberOfRunsForGivenRunLength[runLengthAtThisIndex] = 0;
+        }
+        numberOfRunsForGivenRunLength[runLengthAtThisIndex]++;
+      }
+
+      // capture each instance where there are five or more white runs with an equivalent length.
+      for (const runLength in numberOfRunsForGivenRunLength) {
+        if (Object.prototype.hasOwnProperty.call(numberOfRunsForGivenRunLength, runLength)) {
+          const numberOfRuns = numberOfRunsForGivenRunLength[runLength];
+          if (numberOfRuns >= 5) {
+            const lastIndex = columnsWithFiveOrMoreEqualWhiteRunLengths.length - 1;
+            if (lastIndex > 0) {
+              // there may be circumstances where a single column has more than one run length with 4 or more instances.
+              // in this case, use the first instance (already pushed) and discard the second instance
+              const lastPushedColumnIndex = columnsWithFiveOrMoreEqualWhiteRunLengths[lastIndex].imageFileColumnIndex;
+              const newColumnIndex = whiteRunsInColumn.imageFileColumnIndex;
+              if (newColumnIndex > lastPushedColumnIndex) {
+                const columnWithFourOrMoreEqualRunLengths: WhiteRunsInColumnsWithFiveOrMoreEqualRunLengths = {
+                  imageFileColumnIndex: whiteRunsInColumn.imageFileColumnIndex,
+                  runLength: parseInt(runLength, 10),
+                };
+                columnsWithFiveOrMoreEqualWhiteRunLengths.push(columnWithFourOrMoreEqualRunLengths);
+              }
+            } else {
+              const columnWithFourOrMoreEqualRunLengths: WhiteRunsInColumnsWithFiveOrMoreEqualRunLengths = {
+                imageFileColumnIndex: whiteRunsInColumn.imageFileColumnIndex,
+                runLength: parseInt(runLength, 10),
+              };
+              columnsWithFiveOrMoreEqualWhiteRunLengths.push(columnWithFourOrMoreEqualRunLengths);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return columnsWithFiveOrMoreEqualWhiteRunLengths;
+}
+
+
 /*
   look for entries in rowsWithFourEqualWhiteRunLengths where the row index is one greater than the row index of the prior entry in rowsWithFourEqualWhiteRunLengths and one less than the row index of the next entry in rowsOfWhiteRunsFilter0.
   create a data structure to store these blocks with entries that match the above criteria
 */
-const buildBlockEntries = (rowsWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths[]): BlockEntry[] => {
+const buildRowBlockEntries = (rowsWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths[]): RowBlockEntry[] => {
 
-  const blockEntries: BlockEntry[] = [];
+  const blockEntries: RowBlockEntry[] = [];
 
   let inBlock = false;
   let numberOfRowsInBlock = 0;
@@ -271,7 +483,7 @@ const buildBlockEntries = (rowsWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRo
 
     } else {
       if (inBlock && numberOfRowsInBlock >= 4) {
-        const blockEntry: BlockEntry = {
+        const blockEntry: RowBlockEntry = {
           imageFileRowIndex,
           indexOfBlockStart,
           numberOfRowsInBlock,
@@ -289,18 +501,85 @@ const buildBlockEntries = (rowsWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRo
   return blockEntries;
 }
 
-const processWhiteRunsInRows = (whiteRunsInRows: WhiteRunsInRow[]): WordleGridData => {
+const buildColumnBlockEntries = (columnsWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInColumnsWithFiveOrMoreEqualRunLengths[]): ColumnBlockEntry[] => {
+
+  const blockEntries: ColumnBlockEntry[] = [];
+
+  let inBlock = false;
+  let numberOfColumnsInBlock = 0;
+  let indexOfBlockStart = 0;      // index into columnsWithFourOrMoreEqualWhiteRunLengths where block starts
+  let imageFileColumnIndex = 0;      // index into image data structure
+  let whiteRunLength = -1;
+
+  // special case first column
+  const columnWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInColumnsWithFiveOrMoreEqualRunLengths = columnsWithFourOrMoreEqualWhiteRunLengths[0];
+  const nextColumnWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInColumnsWithFiveOrMoreEqualRunLengths = columnsWithFourOrMoreEqualWhiteRunLengths[1];
+  if (columnWithFourOrMoreEqualWhiteRunLengths.imageFileColumnIndex === (nextColumnWithFourOrMoreEqualWhiteRunLengths.imageFileColumnIndex - 1)) {
+    inBlock = true;
+    indexOfBlockStart = 0;
+    numberOfColumnsInBlock = 1;
+  }
+
+  for (let index = 1; (index < columnsWithFourOrMoreEqualWhiteRunLengths.length - 1); index++) {
+
+    const priorColumnWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInColumnsWithFiveOrMoreEqualRunLengths = columnsWithFourOrMoreEqualWhiteRunLengths[index - 1];
+    const columnWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInColumnsWithFiveOrMoreEqualRunLengths = columnsWithFourOrMoreEqualWhiteRunLengths[index];
+    const nextColumnWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInColumnsWithFiveOrMoreEqualRunLengths = columnsWithFourOrMoreEqualWhiteRunLengths[index + 1];
+
+    if (columnWithFourOrMoreEqualWhiteRunLengths.imageFileColumnIndex === (priorColumnWithFourOrMoreEqualWhiteRunLengths.imageFileColumnIndex + 1)
+      && columnWithFourOrMoreEqualWhiteRunLengths.imageFileColumnIndex === (nextColumnWithFourOrMoreEqualWhiteRunLengths.imageFileColumnIndex - 1)) {
+      // in block
+      if (!inBlock) {
+        inBlock = true;
+        indexOfBlockStart = index - 1;
+        imageFileColumnIndex = columnWithFourOrMoreEqualWhiteRunLengths.imageFileColumnIndex;
+        numberOfColumnsInBlock = 2;
+        whiteRunLength = columnWithFourOrMoreEqualWhiteRunLengths.runLength;
+      }
+      numberOfColumnsInBlock++;
+
+    } else {
+      if (inBlock && numberOfColumnsInBlock >= 4) {
+        const blockEntry: ColumnBlockEntry = {
+          imageFileColumnIndex,
+          indexOfBlockStart,
+          numberOfColumnsInBlock,
+          whiteRunLength,
+        };
+        blockEntries.push(blockEntry);
+
+        inBlock = false;
+      }
+    }
+  }
+
+  // TEDTODO **** special case last column
+
+  return blockEntries;
+}
+
+
+const processWhiteRunsInRows = (whiteRunsInRows: WhiteRunsInRow[]): RowBlockEntry[] => {
 
   const rowsWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths[] = buildRowsWithFourOrMoreEqualWhiteRunLengths(whiteRunsInRows);
 
-  const blockEntries: BlockEntry[] = buildBlockEntries(rowsWithFourOrMoreEqualWhiteRunLengths);
+  const blockEntries: RowBlockEntry[] = buildRowBlockEntries(rowsWithFourOrMoreEqualWhiteRunLengths);
   console.log(blockEntries);
 
-  const wordleGridData: WordleGridData = getWordleGridDataFromBlockEntries(blockEntries);
-  return wordleGridData;
+  return blockEntries;
 }
 
-const getWordleGridDataFromBlockEntries = (blockEntries: BlockEntry[]): WordleGridData => {
+const processWhiteRunsInColumns = (whiteRunsInColumns: WhiteRunsInColumn[]): ColumnBlockEntry[] => {
+
+  const columnsWithFourOrMoreEqualWhiteRunLengths: WhiteRunsInColumnsWithFiveOrMoreEqualRunLengths[] = buildColumnsWithFiveOrMoreEqualWhiteRunLengths(whiteRunsInColumns);
+
+  const blockEntries: ColumnBlockEntry[] = buildColumnBlockEntries(columnsWithFourOrMoreEqualWhiteRunLengths);
+  console.log(blockEntries);
+
+  return blockEntries;
+}
+
+const getWordleGridDataFromBlockEntries = (blockEntries: RowBlockEntry[], columnBlockEntries: ColumnBlockEntry[]): WordleGridData => {
 
   // build a data structure that maps the delta between a block's y position and another block's y position and the number
   // of block entries that have that delta.
@@ -375,7 +654,7 @@ const getWordleGridDataFromBlockEntries = (blockEntries: BlockEntry[]): WordleGr
 
 }
 
-const getWordleGridDataForRowDeltaCount = (blockEntries: BlockEntry[], specifiedRowDelta: number): WordleGridData => {
+const getWordleGridDataForRowDeltaCount = (blockEntries: RowBlockEntry[], specifiedRowDelta: number): WordleGridData => {
 
   const imageFileRowIndices: number[] = [];
   let whiteRunLength: number = -1;
