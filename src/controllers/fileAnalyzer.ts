@@ -89,7 +89,7 @@ interface WordleGridData {
   whiteRunLength: number,
 }
 
-export const getTextUsingOCR = (path: string) => {
+export const generateImageForOCR = (path: string) => {
 
   var wordleFileData = fs.readFileSync(path);
   const png: PNGWithMetadata = PNG.sync.read(wordleFileData, {
@@ -610,8 +610,6 @@ const getWordleGridDataFromBlockEntries = (blockEntries: RowBlockEntry[], column
     }
     ii++;
   }
-
-  console.log(rowDeltaCountsByRowDelta);
 
   // iterate through the deltas rowDeltaCountsByRowDelta; sum the counts for the keys that are 'adjacent'
   // find the one where the sum is 5 (NOTE - this doesn't always work)
