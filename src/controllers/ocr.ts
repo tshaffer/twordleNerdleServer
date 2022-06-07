@@ -27,6 +27,16 @@ export const getTextFromImage = (): Promise<any> => {
 
 async function textFromImage(fileName: string) {
 
+  const client = new vision.ImageAnnotatorClient();
+
+  // Read a local image as a text document
+  const [result]: vision.protos.google.cloud.vision.v1.IAnnotateImageResponse[] = await client.documentTextDetection(fileName);
+  const lettersInRows: string[][] = analyzeOCRResult(result);
+  console.log(lettersInRows);
+}
+
+async function xtextFromImage(fileName: string) {
+
   console.log('textFromImage');
 
   let imageWidth;
@@ -38,6 +48,10 @@ async function textFromImage(fileName: string) {
 
   // Read a local image as a text document
   const [result]: vision.protos.google.cloud.vision.v1.IAnnotateImageResponse[] = await client.documentTextDetection(fileName);
+
+
+  analyzeOCRResult(result);
+
   const fullTextAnnotation: vision.protos.google.cloud.vision.v1.ITextAnnotation = result.fullTextAnnotation;
 
   const pages: vision.protos.google.cloud.vision.v1.IPage[] = fullTextAnnotation.pages;
@@ -237,3 +251,32 @@ async function textFromImage(fileName: string) {
 
 }
 
+const analyzeOCRResult = (result: vision.protos.google.cloud.vision.v1.IAnnotateImageResponse): string[][] => {
+
+  const fullTextAnnotation: vision.protos.google.cloud.vision.v1.ITextAnnotation = result.fullTextAnnotation;
+  const pages: vision.protos.google.cloud.vision.v1.IPage[] = fullTextAnnotation.pages;
+
+  const lettersInRows: string[][] = [[], [], [], [], []];
+  let rowIndex = 0;
+
+  pages.forEach((page: vision.protos.google.cloud.vision.v1.IPage) => {
+    const blocks: vision.protos.google.cloud.vision.v1.IBlock[] = page.blocks;
+    blocks.forEach((block: vision.protos.google.cloud.vision.v1.IBlock) => {
+      const paragraphs: vision.protos.google.cloud.vision.v1.IParagraph[] = block.paragraphs;
+      paragraphs.forEach((paragraph) => {
+        const words: vision.protos.google.cloud.vision.v1.IWord[] = paragraph.words;
+        words.forEach((word) => {
+          const symbols: vision.protos.google.cloud.vision.v1.ISymbol[] = word.symbols;
+          symbols.forEach((symbol: vision.protos.google.cloud.vision.v1.ISymbol) => {
+            lettersInRows[rowIndex].push((symbol as TwordleSymbol).text);
+            if (lettersInRows[rowIndex].length === 5) {
+              rowIndex++;
+            }
+          });
+        });
+      });
+    });
+  });
+
+  return lettersInRows;
+}
