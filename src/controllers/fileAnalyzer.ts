@@ -17,7 +17,7 @@ interface WhiteRunsInRowOrColumn {
 }
 
 interface WhiteRunNew {
-  startIndex: number;
+  startRow: number;
   runLength: number;
 }
 
@@ -61,16 +61,19 @@ interface WhiteRunsInRow {
 
 interface WhiteRunsInRowWithFourOrMoreEqualRunLengths {
   imageFileRowIndex: number;
+  columnOfFirstWhiteRun: number;
   runLength: number;
 }
 
 interface WhiteRunsInColumnsWithFiveOrMoreEqualRunLengths {
   imageFileColumnIndex: number;
+  rowOfFirstWhiteRun: number;
   runLength: number;
 }
 
 interface RowBlockEntry {
   imageFileRowIndex: number;
+  columnOfFirstWhiteRun: number;
   indexOfBlockStart: number;
   numberOfRowsInBlock: number;
   whiteRunLength: number;
@@ -78,6 +81,7 @@ interface RowBlockEntry {
 
 interface ColumnBlockEntry {
   imageFileColumnIndex: number;
+  rowOfFirstWhiteRun: number;
   indexOfBlockStart: number;
   numberOfColumnsInBlock: number;
   whiteRunLength: number;
@@ -255,7 +259,7 @@ const buildWhiteRunsInColumns = (imageWidth: number, imageHeight: number, imageD
       if (!isWhiteAtImageDataRGBIndex[indexIntoWhiteAtImageDataRGBIndex]) {
         if (inWhiteRun) {
           const completedWhiteRun: WhiteRunNew = {
-            startIndex: rowIndexOfWhiteRunStart,
+            startRow: rowIndexOfWhiteRunStart,
             runLength: whiteRunLength,
           };
           currentWhiteRunsInRow.whiteRuns.push(completedWhiteRun);
@@ -304,7 +308,7 @@ const buildWhiteRunsInRowsOrColumns = (imageLengthInOtherDirection: number, imag
       if (!isWhiteAtImageDataRGBIndex[indexIntoWhiteAtImageDataRGBIndex]) {
         if (inWhiteRun) {
           const completedWhiteRun: WhiteRunNew = {
-            startIndex: rowOrColumnIndexOfWhiteRunStart,
+            startRow: rowOrColumnIndexOfWhiteRunStart,
             runLength: whiteRunLength,
           };
           currentWhiteRunsInRowOrColumn.whiteRuns.push(completedWhiteRun);
@@ -341,10 +345,13 @@ const buildRowsWithFourOrMoreEqualWhiteRunLengths = (whiteRunsInRows: WhiteRunsI
 
       // build structure that indicates that number of runs in a single row by runLength
       const numberOfRunsForGivenRunLength: NumberByNumberLUT = {}
+      const startColumnOfRunsForGivenRunLength: NumberByNumberLUT = {};
       for (let indexOfWhiteRunInRow = 0; indexOfWhiteRunInRow < whiteRunsInRow.whiteRuns.length; indexOfWhiteRunInRow++) {
         const runLengthAtThisIndex: number = whiteRunsInRow.whiteRuns[indexOfWhiteRunInRow].runLength;
         if (!numberOfRunsForGivenRunLength.hasOwnProperty(runLengthAtThisIndex.toString())) {
           numberOfRunsForGivenRunLength[runLengthAtThisIndex] = 0;
+          const startColumnOfRunAtThisIndex: number = whiteRunsInRow.whiteRuns[indexOfWhiteRunInRow].startColumn;
+          startColumnOfRunsForGivenRunLength[runLengthAtThisIndex] = startColumnOfRunAtThisIndex; 
         }
         numberOfRunsForGivenRunLength[runLengthAtThisIndex]++;
       }
@@ -363,6 +370,7 @@ const buildRowsWithFourOrMoreEqualWhiteRunLengths = (whiteRunsInRows: WhiteRunsI
               if (newRowIndex > lastPushedRowIndex) {
                 const rowWithFourOrMoreEqualRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths = {
                   imageFileRowIndex: whiteRunsInRow.imageFileRowIndex,
+                  columnOfFirstWhiteRun: startColumnOfRunsForGivenRunLength[runLength],
                   runLength: parseInt(runLength, 10),
                 };
                 rowsWithFourOrMoreEqualWhiteRunLengths.push(rowWithFourOrMoreEqualRunLengths);
@@ -370,6 +378,7 @@ const buildRowsWithFourOrMoreEqualWhiteRunLengths = (whiteRunsInRows: WhiteRunsI
             } else {
               const rowWithFourOrMoreEqualRunLengths: WhiteRunsInRowWithFourOrMoreEqualRunLengths = {
                 imageFileRowIndex: whiteRunsInRow.imageFileRowIndex,
+                columnOfFirstWhiteRun: startColumnOfRunsForGivenRunLength[runLength],
                 runLength: parseInt(runLength, 10),
               };
               rowsWithFourOrMoreEqualWhiteRunLengths.push(rowWithFourOrMoreEqualRunLengths);
@@ -396,11 +405,14 @@ const buildColumnsWithFiveOrMoreEqualWhiteRunLengths = (whiteRunsInColumns: Whit
       // check for instance(s) of 4 or more whiteRuns that have 'equivalent' length
 
       // build structure that indicates that number of runs in a single row by runLength
-      const numberOfRunsForGivenRunLength: NumberByNumberLUT = {}
+      const numberOfRunsForGivenRunLength: NumberByNumberLUT = {};
+      const startRowOfRunsForGivenRunLength: NumberByNumberLUT = {};
       for (let indexOfWhiteRunInColumn = 0; indexOfWhiteRunInColumn < whiteRunsInColumn.whiteRuns.length; indexOfWhiteRunInColumn++) {
         const runLengthAtThisIndex: number = whiteRunsInColumn.whiteRuns[indexOfWhiteRunInColumn].runLength;
         if (!numberOfRunsForGivenRunLength.hasOwnProperty(runLengthAtThisIndex.toString())) {
           numberOfRunsForGivenRunLength[runLengthAtThisIndex] = 0;
+          const startRowOfRunAtThisIndex: number = whiteRunsInColumn.whiteRuns[indexOfWhiteRunInColumn].startRow;
+          startRowOfRunsForGivenRunLength[runLengthAtThisIndex] = startRowOfRunAtThisIndex; 
         }
         numberOfRunsForGivenRunLength[runLengthAtThisIndex]++;
       }
@@ -419,6 +431,7 @@ const buildColumnsWithFiveOrMoreEqualWhiteRunLengths = (whiteRunsInColumns: Whit
               if (newColumnIndex > lastPushedColumnIndex) {
                 const columnWithFourOrMoreEqualRunLengths: WhiteRunsInColumnsWithFiveOrMoreEqualRunLengths = {
                   imageFileColumnIndex: whiteRunsInColumn.imageFileColumnIndex,
+                  rowOfFirstWhiteRun: startRowOfRunsForGivenRunLength[runLength],
                   runLength: parseInt(runLength, 10),
                 };
                 columnsWithFiveOrMoreEqualWhiteRunLengths.push(columnWithFourOrMoreEqualRunLengths);
@@ -426,6 +439,7 @@ const buildColumnsWithFiveOrMoreEqualWhiteRunLengths = (whiteRunsInColumns: Whit
             } else {
               const columnWithFourOrMoreEqualRunLengths: WhiteRunsInColumnsWithFiveOrMoreEqualRunLengths = {
                 imageFileColumnIndex: whiteRunsInColumn.imageFileColumnIndex,
+                rowOfFirstWhiteRun: startRowOfRunsForGivenRunLength[runLength],
                 runLength: parseInt(runLength, 10),
               };
               columnsWithFiveOrMoreEqualWhiteRunLengths.push(columnWithFourOrMoreEqualRunLengths);
@@ -452,6 +466,7 @@ const buildRowBlockEntries = (rowsWithFourOrMoreEqualWhiteRunLengths: WhiteRunsI
   let numberOfRowsInBlock = 0;
   let indexOfBlockStart = 0;      // index into rowsWithFourOrMoreEqualWhiteRunLengths where block starts
   let imageFileRowIndex = 0;      // index into image data structure
+  let columnOfFirstWhiteRun = -1;
   let whiteRunLength = -1;
 
   // special case first row
@@ -476,6 +491,7 @@ const buildRowBlockEntries = (rowsWithFourOrMoreEqualWhiteRunLengths: WhiteRunsI
         inBlock = true;
         indexOfBlockStart = index - 1;
         imageFileRowIndex = rowWithFourOrMoreEqualWhiteRunLengths.imageFileRowIndex;
+        columnOfFirstWhiteRun = rowWithFourOrMoreEqualWhiteRunLengths.columnOfFirstWhiteRun;
         numberOfRowsInBlock = 2;
         whiteRunLength = rowWithFourOrMoreEqualWhiteRunLengths.runLength;
       }
@@ -485,6 +501,7 @@ const buildRowBlockEntries = (rowsWithFourOrMoreEqualWhiteRunLengths: WhiteRunsI
       if (inBlock && numberOfRowsInBlock >= 4) {
         const blockEntry: RowBlockEntry = {
           imageFileRowIndex,
+          columnOfFirstWhiteRun,
           indexOfBlockStart,
           numberOfRowsInBlock,
           whiteRunLength,
@@ -509,6 +526,7 @@ const buildColumnBlockEntries = (columnsWithFourOrMoreEqualWhiteRunLengths: Whit
   let numberOfColumnsInBlock = 0;
   let indexOfBlockStart = 0;      // index into columnsWithFourOrMoreEqualWhiteRunLengths where block starts
   let imageFileColumnIndex = 0;      // index into image data structure
+  let rowOfFirstWhiteRun = -1;
   let whiteRunLength = -1;
 
   // special case first column
@@ -519,6 +537,7 @@ const buildColumnBlockEntries = (columnsWithFourOrMoreEqualWhiteRunLengths: Whit
     indexOfBlockStart = 0;
     // TEDTODO - fix in row function
     imageFileColumnIndex = columnWithFourOrMoreEqualWhiteRunLengths.imageFileColumnIndex;
+    rowOfFirstWhiteRun = columnWithFourOrMoreEqualWhiteRunLengths.rowOfFirstWhiteRun;
     numberOfColumnsInBlock = 1;
   }
 
@@ -535,6 +554,7 @@ const buildColumnBlockEntries = (columnsWithFourOrMoreEqualWhiteRunLengths: Whit
         inBlock = true;
         indexOfBlockStart = index - 1;
         imageFileColumnIndex = columnWithFourOrMoreEqualWhiteRunLengths.imageFileColumnIndex;
+        rowOfFirstWhiteRun = columnWithFourOrMoreEqualWhiteRunLengths.rowOfFirstWhiteRun;
         numberOfColumnsInBlock = 2;
         whiteRunLength = columnWithFourOrMoreEqualWhiteRunLengths.runLength;
       } else if (index === (columnsWithFourOrMoreEqualWhiteRunLengths.length - 2)) {
@@ -543,6 +563,7 @@ const buildColumnBlockEntries = (columnsWithFourOrMoreEqualWhiteRunLengths: Whit
         if (numberOfColumnsInBlock >= 4) {
           const blockEntry: ColumnBlockEntry = {
             imageFileColumnIndex,
+            rowOfFirstWhiteRun,
             indexOfBlockStart,
             numberOfColumnsInBlock,
             whiteRunLength,
@@ -555,6 +576,7 @@ const buildColumnBlockEntries = (columnsWithFourOrMoreEqualWhiteRunLengths: Whit
       if (inBlock && numberOfColumnsInBlock >= 4) {
         const blockEntry: ColumnBlockEntry = {
           imageFileColumnIndex,
+          rowOfFirstWhiteRun,
           indexOfBlockStart,
           numberOfColumnsInBlock,
           whiteRunLength,
@@ -602,6 +624,12 @@ const getWordleGridDataFromBlockEntries = (blockEntries: RowBlockEntry[], column
     let jj = ii + 1;
     while (jj < blockEntries.length) {
       const rowDelta = blockEntries[jj].imageFileRowIndex - blockEntries[ii].imageFileRowIndex;
+      if (rowDelta === 149 || rowDelta === 148) {
+        console.log('rowDelta === ', rowDelta);
+        console.log(ii, jj);
+        console.log(blockEntries[ii]);
+        console.log(blockEntries[jj]);
+      }
       if (!rowDeltaCountsByRowDelta.hasOwnProperty(rowDelta)) {
         rowDeltaCountsByRowDelta[rowDelta] = 0;
       }
