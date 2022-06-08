@@ -100,19 +100,10 @@ export const generateImageForOCR = (path: string) => {
     filterType: -1,
   });
 
-  const wordleGridData: WordleGridData = getWordleGridData(png.width, png.height, png.data);
-  const imageFileRowIndices: number[] = wordleGridData.imageFileRowIndices;
-  const whiteRunLength: number = wordleGridData.whiteRunLength;
-
-  imageFileRowIndices.sort();
-
-  const gridItemSize: number = imageFileRowIndices[1] - imageFileRowIndices[0];
-  const gridSize: number = (gridItemSize * 5) - whiteRunLength;
-  const gridStartX: number = 1327;    // TEDTODOWORDLE
-  const gridStartY: number = imageFileRowIndices[0];
-
-  var dst = new PNG({ width: gridSize, height: gridSize });
-  PNG.bitblt(png, dst, gridStartX, gridStartY, gridSize, gridSize);
+  const gridCoordinates: any = getWordleGridData(png.width, png.height, png.data);
+  const { xMin, yMin, xMax, yMax } = gridCoordinates;
+  var dst = new PNG({ width: xMax - xMin + 1, height: yMax - yMin + 1 });
+  PNG.bitblt(png, dst, xMin, yMin, xMax - xMin + 1, yMax - yMin + 1);
 
   const croppedBuffer = PNG.sync.write(dst);
   fs.writeFileSync('public/croppedWordleOut.png', croppedBuffer);
@@ -121,6 +112,29 @@ export const generateImageForOCR = (path: string) => {
 
   const buffer = PNG.sync.write(dst);
   fs.writeFileSync('wordleOut.png', buffer);
+
+
+  // const wordleGridData: WordleGridData = getWordleGridData(png.width, png.height, png.data);
+  // const imageFileRowIndices: number[] = wordleGridData.imageFileRowIndices;
+  // const whiteRunLength: number = wordleGridData.whiteRunLength;
+
+  // imageFileRowIndices.sort();
+
+  // const gridItemSize: number = imageFileRowIndices[1] - imageFileRowIndices[0];
+  // const gridSize: number = (gridItemSize * 5) - whiteRunLength;
+  // const gridStartX: number = 1327;    // TEDTODOWORDLE
+  // const gridStartY: number = imageFileRowIndices[0];
+
+  // var dst = new PNG({ width: gridSize, height: gridSize });
+  // PNG.bitblt(png, dst, gridStartX, gridStartY, gridSize, gridSize);
+
+  // const croppedBuffer = PNG.sync.write(dst);
+  // fs.writeFileSync('public/croppedWordleOut.png', croppedBuffer);
+
+  // prepareImageForOCR(dst.width, dst.height, dst.data);
+
+  // const buffer = PNG.sync.write(dst);
+  // fs.writeFileSync('wordleOut.png', buffer);
 }
 
 const prepareImageForOCR = (imageWidth: number, imageHeight: number, data: Buffer) => {
@@ -188,7 +202,8 @@ const getRowsWith6WhiteRunsOrMore = (whiteRunsInRows: WhiteRunsInRow[]): WhiteRu
   return rowsWith6WhiteRunsOrMore;
 }
 
-const getWordleGridData = (imageWidth: number, imageHeight: number, imageData: Buffer): WordleGridData => {
+// const getWordleGridData = (imageWidth: number, imageHeight: number, imageData: Buffer): WordleGridData => {
+const getWordleGridData = (imageWidth: number, imageHeight: number, imageData: Buffer): any => {
 
   const whiteRunsInRows: WhiteRunsInRow[] = buildWhiteRunsInRows(imageWidth, imageHeight, imageData);
   const rowsWith6WhiteRunsOrMore: WhiteRunsInRow[] = getRowsWith6WhiteRunsOrMore(whiteRunsInRows);
@@ -202,8 +217,10 @@ const getWordleGridData = (imageWidth: number, imageHeight: number, imageData: B
     numberOfRowsWithEqualInitialWhiteRunLength[initialRunLength]++;
   })
 
-  let highestNumberOfRowsWithCommonInitialWhiteRunLength = 0;
+  // get the interesting initial white run length value
   let initialWhiteRunLengthForRowsWithMostCommonInitialWhiteRunLength = -1;
+
+  let highestNumberOfRowsWithCommonInitialWhiteRunLength = 0;
   for (const initialWhiteRunLength in numberOfRowsWithEqualInitialWhiteRunLength) {
     if (Object.prototype.hasOwnProperty.call(numberOfRowsWithEqualInitialWhiteRunLength, initialWhiteRunLength)) {
       const numberOfRowsWithThisInitialWhiteRunLength = numberOfRowsWithEqualInitialWhiteRunLength[initialWhiteRunLength];
@@ -213,17 +230,36 @@ const getWordleGridData = (imageWidth: number, imageHeight: number, imageData: B
       }
     }
   }
-  
 
+  // build list of rows with this initial white run length
+  const rowsWithMaxInitialWhiteRunLength: WhiteRunsInRow[] = [];
+  rowsWith6WhiteRunsOrMore.forEach((whiteRunsInRow: WhiteRunsInRow) => {
+    const initialRunLength = whiteRunsInRow.whiteRuns[0].runLength
+    if (initialRunLength === initialWhiteRunLengthForRowsWithMostCommonInitialWhiteRunLength) {
+      rowsWithMaxInitialWhiteRunLength.push(whiteRunsInRow);
+    }
+  })
 
-  const whiteRunsInColumns: WhiteRunsInColumn[] = buildWhiteRunsInColumns(imageWidth, imageHeight, imageData);
+  const xMin: number = rowsWithMaxInitialWhiteRunLength[0].whiteRuns[0].runLength;
+  const yMin: number = rowsWithMaxInitialWhiteRunLength[0].imageFileRowIndex;
+  const xMax: number = rowsWithMaxInitialWhiteRunLength[0].whiteRuns[rowsWithMaxInitialWhiteRunLength[0].whiteRuns.length - 1].startColumn;
+  const yMax: number = rowsWithMaxInitialWhiteRunLength[rowsWithMaxInitialWhiteRunLength.length - 1].imageFileRowIndex;
 
-  const rowBlockEntries: RowBlockEntry[] = processWhiteRunsInRows(whiteRunsInRows);
-  const columnBlockEntries: ColumnBlockEntry[] = processWhiteRunsInColumns(whiteRunsInColumns);
+  return {
+    xMin,
+    yMin,
+    xMax,
+    yMax
+  };
 
-  const wordleGridData: WordleGridData = getWordleGridDataFromBlockEntries(rowBlockEntries, columnBlockEntries);
+  // const whiteRunsInColumns: WhiteRunsInColumn[] = buildWhiteRunsInColumns(imageWidth, imageHeight, imageData);
 
-  return wordleGridData;
+  // const rowBlockEntries: RowBlockEntry[] = processWhiteRunsInRows(whiteRunsInRows);
+  // const columnBlockEntries: ColumnBlockEntry[] = processWhiteRunsInColumns(whiteRunsInColumns);
+
+  // const wordleGridData: WordleGridData = getWordleGridDataFromBlockEntries(rowBlockEntries, columnBlockEntries);
+
+  // return wordleGridData;
 }
 
 const buildWhiteRunsInRows = (imageWidth: number, imageHeight: number, imageData: Buffer): WhiteRunsInRow[] => {
