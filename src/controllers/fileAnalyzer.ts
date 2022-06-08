@@ -174,9 +174,48 @@ const convertBackgroundColorsToBlack = (imgData: Buffer) => {
   }
 };
 
+const getRowsWith6WhiteRunsOrMore = (whiteRunsInRows: WhiteRunsInRow[]): WhiteRunsInRow[] => {
+
+  const rowsWith6WhiteRunsOrMore: WhiteRunsInRow[] = [];
+
+  for (let index = 0; index < whiteRunsInRows.length; index++) {
+    const whiteRunsInRow: WhiteRunsInRow = whiteRunsInRows[index];
+    if (whiteRunsInRow.whiteRuns.length >= 6) {
+      rowsWith6WhiteRunsOrMore.push(whiteRunsInRow);
+    }
+  }
+
+  return rowsWith6WhiteRunsOrMore;
+}
+
 const getWordleGridData = (imageWidth: number, imageHeight: number, imageData: Buffer): WordleGridData => {
 
   const whiteRunsInRows: WhiteRunsInRow[] = buildWhiteRunsInRows(imageWidth, imageHeight, imageData);
+  const rowsWith6WhiteRunsOrMore: WhiteRunsInRow[] = getRowsWith6WhiteRunsOrMore(whiteRunsInRows);
+
+  const numberOfRowsWithEqualInitialWhiteRunLength: NumberByNumberLUT = {};
+  rowsWith6WhiteRunsOrMore.forEach((rowWith6WhiteRunsOrMore: WhiteRunsInRow) => {
+    const initialRunLength = rowWith6WhiteRunsOrMore.whiteRuns[0].runLength
+    if (!numberOfRowsWithEqualInitialWhiteRunLength.hasOwnProperty(initialRunLength)) {
+      numberOfRowsWithEqualInitialWhiteRunLength[initialRunLength] = 0;
+    }
+    numberOfRowsWithEqualInitialWhiteRunLength[initialRunLength]++;
+  })
+
+  let highestNumberOfRowsWithCommonInitialWhiteRunLength = 0;
+  let initialWhiteRunLengthForRowsWithMostCommonInitialWhiteRunLength = -1;
+  for (const initialWhiteRunLength in numberOfRowsWithEqualInitialWhiteRunLength) {
+    if (Object.prototype.hasOwnProperty.call(numberOfRowsWithEqualInitialWhiteRunLength, initialWhiteRunLength)) {
+      const numberOfRowsWithThisInitialWhiteRunLength = numberOfRowsWithEqualInitialWhiteRunLength[initialWhiteRunLength];
+      if (numberOfRowsWithThisInitialWhiteRunLength > highestNumberOfRowsWithCommonInitialWhiteRunLength) {
+        highestNumberOfRowsWithCommonInitialWhiteRunLength = numberOfRowsWithThisInitialWhiteRunLength;
+        initialWhiteRunLengthForRowsWithMostCommonInitialWhiteRunLength = parseInt(initialWhiteRunLength, 10);
+      }
+    }
+  }
+  
+
+
   const whiteRunsInColumns: WhiteRunsInColumn[] = buildWhiteRunsInColumns(imageWidth, imageHeight, imageData);
 
   const rowBlockEntries: RowBlockEntry[] = processWhiteRunsInRows(whiteRunsInRows);
@@ -228,6 +267,12 @@ const buildWhiteRunsInRows = (imageWidth: number, imageHeight: number, imageData
           whiteRunLength++;
         }
       }
+    }
+
+    // capture last white run - it doesn't appear that this ever occurs
+    // TEDTODO
+    if (inWhiteRun) {
+      console.log('floopers');
     }
   }
 
@@ -351,7 +396,7 @@ const buildRowsWithFourOrMoreEqualWhiteRunLengths = (whiteRunsInRows: WhiteRunsI
         if (!numberOfRunsForGivenRunLength.hasOwnProperty(runLengthAtThisIndex.toString())) {
           numberOfRunsForGivenRunLength[runLengthAtThisIndex] = 0;
           const startColumnOfRunAtThisIndex: number = whiteRunsInRow.whiteRuns[indexOfWhiteRunInRow].startColumn;
-          startColumnOfRunsForGivenRunLength[runLengthAtThisIndex] = startColumnOfRunAtThisIndex; 
+          startColumnOfRunsForGivenRunLength[runLengthAtThisIndex] = startColumnOfRunAtThisIndex;
         }
         numberOfRunsForGivenRunLength[runLengthAtThisIndex]++;
       }
@@ -412,7 +457,7 @@ const buildColumnsWithFiveOrMoreEqualWhiteRunLengths = (whiteRunsInColumns: Whit
         if (!numberOfRunsForGivenRunLength.hasOwnProperty(runLengthAtThisIndex.toString())) {
           numberOfRunsForGivenRunLength[runLengthAtThisIndex] = 0;
           const startRowOfRunAtThisIndex: number = whiteRunsInColumn.whiteRuns[indexOfWhiteRunInColumn].startRow;
-          startRowOfRunsForGivenRunLength[runLengthAtThisIndex] = startRowOfRunAtThisIndex; 
+          startRowOfRunsForGivenRunLength[runLengthAtThisIndex] = startRowOfRunAtThisIndex;
         }
         numberOfRunsForGivenRunLength[runLengthAtThisIndex]++;
       }
