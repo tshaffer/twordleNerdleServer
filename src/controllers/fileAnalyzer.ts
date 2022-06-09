@@ -10,7 +10,6 @@ interface NumberByNumberLUT {
   [id: number]: number;
 }
 
-
 interface WhiteRun {
   startColumn: number;
   runLength: number;
@@ -19,7 +18,6 @@ interface WhiteRun {
 interface WhiteRunsInRow {
   imageFileRowIndex: number;
   whiteRuns: WhiteRun[];
-  runLength: number;            // TEDTODO - how is this single runLength determined? variable name?
 }
 
 export const generateImageForOCR = (path: string) => {
@@ -41,69 +39,6 @@ export const generateImageForOCR = (path: string) => {
 
   const buffer = PNG.sync.write(dst);
   fs.writeFileSync('wordleOut.png', buffer);
-}
-
-const prepareImageForOCR = (imageWidth: number, imageHeight: number, data: Buffer) => {
-  const whiteAtImageDataRGBIndex: boolean[] = buildIsWhiteAtImageDataRGBIndex(data as unknown as Uint8ClampedArray);
-  const whiteRows: number[] = getWhiteRows(imageWidth, whiteAtImageDataRGBIndex);
-  const whiteColumns: number[] = getWhiteColumns(imageWidth, imageHeight, whiteAtImageDataRGBIndex);
-  convertWhiteRowsToBlack(imageWidth, whiteRows, data as unknown as Uint8ClampedArray);
-  convertWhiteColumnsToBlack(imageWidth, imageHeight, whiteColumns, data as unknown as Uint8ClampedArray);
-  convertBackgroundColorsToBlack(data);
-}
-
-const convertWhiteRowsToBlack = (canvasWidth: number, whiteRows: number[], imageDataRGB: Uint8ClampedArray) => {
-  for (let rowIndex = 0; rowIndex < whiteRows.length; rowIndex++) {
-    const whiteRowIndex = whiteRows[rowIndex];
-    const rowStartIndex = whiteRowIndex * canvasWidth * 4;
-    for (let columnIndex = 0; columnIndex < canvasWidth; columnIndex++) {
-      const columnOffset = columnIndex * 4;
-      imageDataRGB[rowStartIndex + columnOffset] = 0;
-      imageDataRGB[rowStartIndex + columnOffset + 1] = 0;
-      imageDataRGB[rowStartIndex + columnOffset + 2] = 0;
-    }
-  }
-};
-
-const convertWhiteColumnsToBlack = (canvasWidth: number, canvasHeight: number, whiteColumns: number[], imageDataRGB: Uint8ClampedArray) => {
-  for (let indexIntoWhiteColumns = 0; indexIntoWhiteColumns < whiteColumns.length; indexIntoWhiteColumns++) {
-    const whiteColumnIndex = whiteColumns[indexIntoWhiteColumns];
-    for (let rowIndex = 0; rowIndex < canvasHeight; rowIndex++) {
-      const offset = offsetFromPosition(canvasWidth, rowIndex, whiteColumnIndex);
-      imageDataRGB[offset] = 0;
-      imageDataRGB[offset + 1] = 0;
-      imageDataRGB[offset + 2] = 0;
-    }
-  }
-};
-
-const convertBackgroundColorsToBlack = (imgData: Buffer) => {
-  // for (let i = 0; i < imgData.length; i += 4) {
-  for (let i = 0; i < imgData.length; i = i + 4) {
-    const red = imgData[i];
-    const green = imgData[i + 1];
-    const blue = imgData[i + 2];
-    const letterAnswerType: LetterAnswerType = getLetterAnswerTypeRgb(red, green, blue);
-    if (letterAnswerType !== LetterAnswerType.Unknown) {
-      imgData[i] = 0;
-      imgData[i + 1] = 0;
-      imgData[i + 2] = 0;
-    }
-  }
-};
-
-const getRowsWith6WhiteRunsOrMore = (whiteRunsInRows: WhiteRunsInRow[]): WhiteRunsInRow[] => {
-
-  const rowsWith6WhiteRunsOrMore: WhiteRunsInRow[] = [];
-
-  for (let index = 0; index < whiteRunsInRows.length; index++) {
-    const whiteRunsInRow: WhiteRunsInRow = whiteRunsInRows[index];
-    if (whiteRunsInRow.whiteRuns.length >= 6) {
-      rowsWith6WhiteRunsOrMore.push(whiteRunsInRow);
-    }
-  }
-
-  return rowsWith6WhiteRunsOrMore;
 }
 
 const getWordleGridData = (imageWidth: number, imageHeight: number, imageData: Buffer): any => {
@@ -156,6 +91,15 @@ const getWordleGridData = (imageWidth: number, imageHeight: number, imageData: B
   };
 }
 
+const prepareImageForOCR = (imageWidth: number, imageHeight: number, data: Buffer) => {
+  const whiteAtImageDataRGBIndex: boolean[] = buildIsWhiteAtImageDataRGBIndex(data as unknown as Uint8ClampedArray);
+  const whiteRows: number[] = getWhiteRows(imageWidth, whiteAtImageDataRGBIndex);
+  const whiteColumns: number[] = getWhiteColumns(imageWidth, imageHeight, whiteAtImageDataRGBIndex);
+  convertWhiteRowsToBlack(imageWidth, whiteRows, data as unknown as Uint8ClampedArray);
+  convertWhiteColumnsToBlack(imageWidth, imageHeight, whiteColumns, data as unknown as Uint8ClampedArray);
+  convertBackgroundColorsToBlack(data);
+}
+
 const buildWhiteRunsInRows = (imageWidth: number, imageHeight: number, imageData: Buffer): WhiteRunsInRow[] => {
 
   const whiteRunsInRows: WhiteRunsInRow[] = [];
@@ -172,7 +116,10 @@ const buildWhiteRunsInRows = (imageWidth: number, imageHeight: number, imageData
 
     inWhiteRun = false;
 
-    const currentWhiteRunsInRow: WhiteRunsInRow = { imageFileRowIndex, whiteRuns: [], runLength: -1 };
+    const currentWhiteRunsInRow: WhiteRunsInRow = {
+      imageFileRowIndex,
+      whiteRuns: [],
+    };
     whiteRunsInRows.push(currentWhiteRunsInRow);
 
     for (let imageFileColumnIndex = 0; imageFileColumnIndex < imageWidth; imageFileColumnIndex++) {
@@ -205,6 +152,59 @@ const buildWhiteRunsInRows = (imageWidth: number, imageHeight: number, imageData
   }
 
   return whiteRunsInRows;
+}
+
+const convertWhiteRowsToBlack = (canvasWidth: number, whiteRows: number[], imageDataRGB: Uint8ClampedArray) => {
+  for (let rowIndex = 0; rowIndex < whiteRows.length; rowIndex++) {
+    const whiteRowIndex = whiteRows[rowIndex];
+    const rowStartIndex = whiteRowIndex * canvasWidth * 4;
+    for (let columnIndex = 0; columnIndex < canvasWidth; columnIndex++) {
+      const columnOffset = columnIndex * 4;
+      imageDataRGB[rowStartIndex + columnOffset] = 0;
+      imageDataRGB[rowStartIndex + columnOffset + 1] = 0;
+      imageDataRGB[rowStartIndex + columnOffset + 2] = 0;
+    }
+  }
+};
+
+const convertWhiteColumnsToBlack = (canvasWidth: number, canvasHeight: number, whiteColumns: number[], imageDataRGB: Uint8ClampedArray) => {
+  for (let indexIntoWhiteColumns = 0; indexIntoWhiteColumns < whiteColumns.length; indexIntoWhiteColumns++) {
+    const whiteColumnIndex = whiteColumns[indexIntoWhiteColumns];
+    for (let rowIndex = 0; rowIndex < canvasHeight; rowIndex++) {
+      const offset = offsetFromPosition(canvasWidth, rowIndex, whiteColumnIndex);
+      imageDataRGB[offset] = 0;
+      imageDataRGB[offset + 1] = 0;
+      imageDataRGB[offset + 2] = 0;
+    }
+  }
+};
+
+const convertBackgroundColorsToBlack = (imgData: Buffer) => {
+  for (let i = 0; i < imgData.length; i = i + 4) {
+    const red = imgData[i];
+    const green = imgData[i + 1];
+    const blue = imgData[i + 2];
+    const letterAnswerType: LetterAnswerType = getLetterAnswerTypeRgb(red, green, blue);
+    if (letterAnswerType !== LetterAnswerType.Unknown) {
+      imgData[i] = 0;
+      imgData[i + 1] = 0;
+      imgData[i + 2] = 0;
+    }
+  }
+};
+
+const getRowsWith6WhiteRunsOrMore = (whiteRunsInRows: WhiteRunsInRow[]): WhiteRunsInRow[] => {
+
+  const rowsWith6WhiteRunsOrMore: WhiteRunsInRow[] = [];
+
+  for (let index = 0; index < whiteRunsInRows.length; index++) {
+    const whiteRunsInRow: WhiteRunsInRow = whiteRunsInRows[index];
+    if (whiteRunsInRow.whiteRuns.length >= 6) {
+      rowsWith6WhiteRunsOrMore.push(whiteRunsInRow);
+    }
+  }
+
+  return rowsWith6WhiteRunsOrMore;
 }
 
 const offsetFromPosition = (canvasWidth: number, row: number, column: number): number => {
