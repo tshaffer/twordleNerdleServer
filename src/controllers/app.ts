@@ -10,7 +10,7 @@ import { version } from '../version';
 
 let spellchecker: { parse: (arg0: { aff: Buffer; dic: Buffer; }) => any; use: (arg0: any) => void; check: (arg0: string) => any; };
 
-import { ContentIndicesByDirection, LetterAnswerType } from '../types';
+import { ContentIndicesByDirection, LetterAnswerType, LetterTypes } from '../types';
 import { isLetterAtExactLocation, isLetterNotAtExactLocation, isLetterNotInWord } from '../utilities';
 import { generateImageForOCR } from './fileAnalyzer';
 import { getTextFromImage } from './ocr';
@@ -107,7 +107,7 @@ export const getWords = (request: Request, response: Response, next: any) => {
   const contentIndices: ContentIndicesByDirection = analyzeImageFile(pathOnServer);
   console.log('contentIndices', contentIndices);
 
-  const letterAnswerTypes = getLetterTypes(guesses, png.data, png.width, contentIndices);
+  const letterAnswerTypes: LetterTypes = getLetterTypes(guesses, png.data, png.width, contentIndices);
 
   const words = getWordsPrep(letterAnswerTypes);
   console.log('getWordsPrep - words = ', words);
@@ -119,7 +119,7 @@ export const getWords = (request: Request, response: Response, next: any) => {
 
 }
 
-const getWordsPrep = (letterAnswerTypes: any) => {
+const getWordsPrep = (letterAnswerTypes: LetterTypes) => {
 
   const candidateLettersAtLocation: string[][] = [];
 
@@ -232,7 +232,7 @@ const getWordsPrep = (letterAnswerTypes: any) => {
   return words;
 }
 
-const getLetterTypes = (guesses: string[], imageData: Buffer, imageWidth: number, contentIndicesByDirection: ContentIndicesByDirection) => {
+const getLetterTypes = (guesses: string[], imageData: Buffer, imageWidth: number, contentIndicesByDirection: ContentIndicesByDirection): LetterTypes => {
 
   let lettersNotInWord: string = '';
   const letterAnswerValues: LetterAnswerType[][] = [];

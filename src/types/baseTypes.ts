@@ -14,6 +14,12 @@ export interface TwordleConfiguration {
   PORT: number;
 }
 
+export interface LetterTypes {
+  lettersAtExactLocation: string[];
+  lettersNotAtExactLocation: string[];
+  lettersNotInWord: string;
+}
+
 export enum LetterAnswerType {
   NotInWord,
   InWordAtNonLocation,
