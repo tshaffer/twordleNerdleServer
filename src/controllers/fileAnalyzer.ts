@@ -112,8 +112,6 @@ const buildWhiteRunsInRows = (imageWidth: number, imageHeight: number, imageData
 
   for (let imageFileRowIndex = 0; imageFileRowIndex < imageHeight; imageFileRowIndex++) {
 
-    // don't care about trailing white run in prior row
-
     inWhiteRun = false;
 
     const currentWhiteRunsInRow: WhiteRunsInRow = {
@@ -144,10 +142,14 @@ const buildWhiteRunsInRows = (imageWidth: number, imageHeight: number, imageData
       }
     }
 
-    // capture last white run - it doesn't appear that this ever occurs
-    // TEDTODO
+    // capture last white runs
     if (inWhiteRun) {
       console.log('floopers');
+      const completedWhiteRun: WhiteRun = {
+        startColumn: columnIndexOfWhiteRunStart,
+        runLength: whiteRunLength,
+      };
+      currentWhiteRunsInRow.whiteRuns.push(completedWhiteRun);
     }
   }
 
