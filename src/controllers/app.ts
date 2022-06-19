@@ -119,7 +119,32 @@ export const getWords = (request: Request, response: Response, next: any) => {
 
 }
 
-const getWordsPrep = (letterAnswerTypes: LetterTypes) => {
+export const getWordsEndpoint = (request: Request, response: Response, next: any) => {
+  console.log('getWordsEndpoint');
+  console.log(request);
+  console.log(request.body);
+
+  const lettersAtExactLocation: string[] = [];
+  const lettersNotAtExactLocation: string[] = [];
+  request.body.lettersAtExactLocation.forEach((letterAtExactLocation: string, index: number) => {
+    lettersAtExactLocation.push(letterAtExactLocation.toUpperCase());
+  });
+  request.body.lettersNotAtExactLocation.forEach((letterNotAtExactLocation: string, index: number) => {
+    lettersNotAtExactLocation.push(letterNotAtExactLocation.toUpperCase());
+  });
+  const lettersNotInWord: string = request.body.lettersNotInWord.toUpperCase();
+  const letterAnswerTypes = { lettersAtExactLocation, lettersNotAtExactLocation, lettersNotInWord };
+
+  const words = getWordsPrep(letterAnswerTypes);
+  console.log(words);
+
+  response.status(200).json({
+    success: true,
+    words,
+  });
+}
+
+const getWordsPrep = (letterAnswerTypes: LetterTypes): string[] => {
 
   const candidateLettersAtLocation: string[][] = [];
 

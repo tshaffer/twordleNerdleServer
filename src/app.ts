@@ -4,7 +4,7 @@ import cors from 'cors';
 // import cookieParser from 'cookie-parser';
 import { readConfig } from './config';
 
-import { getWords, initializeSpellChecker, uploadFile } from './controllers';
+import { getWords, getWordsEndpoint, initializeSpellChecker, uploadFile } from './controllers';
 
 const bodyParser = require('body-parser');
 
@@ -45,6 +45,8 @@ class App {
 
     this.app.get('/api/v1/test', getTest);
     this.app.post('/api/v1/test', postTest);
+
+    this.app.post('/api/v1/getWordsEndpoint', getWordsEndpoint);
   }
 
   private config(): void {
