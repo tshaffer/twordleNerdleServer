@@ -245,7 +245,7 @@ const getLetterTypes = (guesses: string[], imageData: Buffer, imageWidth: number
   // for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
   for (let rowIndex = 0; rowIndex < guesses.length; rowIndex++) {
     letterAnswerValues.push([]);
-    const letterAnswersInRow = letterAnswerValues[rowIndex];
+    const letterAnswersInRow: LetterAnswerType[] = letterAnswerValues[rowIndex];
     for (let columnIndex = 0; columnIndex < numColumns; columnIndex++) {
       const letterAnswerType: LetterAnswerType = getLetterAnswer(imageData, imageWidth, contentIndicesByDirection, rowIndex, columnIndex);
       console.log(rowIndex, columnIndex, letterAnswerType);
